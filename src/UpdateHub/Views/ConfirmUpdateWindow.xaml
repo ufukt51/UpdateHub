@@ -1,0 +1,142 @@
+<Window x:Class="UpdateHub.Views.ConfirmUpdateWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="clr-namespace:UpdateHub.ViewModels"
+        mc:Ignorable="d"
+        d:DataContext="{d:DesignInstance Type=vm:ConfirmSummary}"
+        Title="Güncellemeyi onayla" Width="620" SizeToContent="Height" MaxHeight="680"
+        ResizeMode="NoResize" ShowInTaskbar="False" WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource Bg}" Foreground="{DynamicResource Text}"
+        FontFamily="Segoe UI Variable Text, Segoe UI" FontSize="13">
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis" />
+
+        <!-- Uyarı kutusu: rozet + açıklama. Renkler kullanımda verilir. -->
+        <Style x:Key="Callout" TargetType="Border">
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Padding" Value="10,8" />
+            <Setter Property="Margin" Value="0,0,0,8" />
+        </Style>
+        <Style x:Key="VersionText" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="{StaticResource MonoFont}" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="20,16,20,16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- Başlık -->
+        <StackPanel Grid.Row="0" Margin="0,0,0,12">
+            <TextBlock Text="{Binding Title}" FontSize="18" FontWeight="SemiBold" />
+            <TextBlock Text="{Binding Subtitle}" Foreground="{DynamicResource Muted}" Margin="0,2,0,0" />
+        </StackPanel>
+
+        <!-- Uyarılar -->
+        <StackPanel Grid.Row="1">
+            <Border Style="{StaticResource Callout}" Background="{DynamicResource WarnSoft}" BorderBrush="{DynamicResource WarnEdge}"
+                    Visibility="{Binding MajorWarning, Converter={x:Static vm:NullToCollapsedConverter.Instance}}">
+                <DockPanel>
+                    <Border DockPanel.Dock="Left" Style="{StaticResource Badge}" Margin="0,0,10,0" VerticalAlignment="Top"
+                            Background="{DynamicResource WarnSoft}" BorderBrush="{DynamicResource WarnEdge}">
+                        <TextBlock Text="MAJOR" Style="{StaticResource BadgeText}" Foreground="{DynamicResource Warn}" />
+                    </Border>
+                    <TextBlock Text="{Binding MajorWarning}" TextWrapping="Wrap" VerticalAlignment="Center" />
+                </DockPanel>
+            </Border>
+            <Border Style="{StaticResource Callout}" Background="{DynamicResource DupSoft}" BorderBrush="{DynamicResource DupEdge}"
+                    Visibility="{Binding DuplicateWarning, Converter={x:Static vm:NullToCollapsedConverter.Instance}}">
+                <DockPanel>
+                    <Border DockPanel.Dock="Left" Style="{StaticResource Badge}" Margin="0,0,10,0" VerticalAlignment="Top"
+                            Background="{DynamicResource DupSoft}" BorderBrush="{DynamicResource DupEdge}">
+                        <TextBlock Text="ÇİFT" Style="{StaticResource BadgeText}" Foreground="{DynamicResource Dup}" />
+                    </Border>
+                    <TextBlock Text="{Binding DuplicateWarning}" TextWrapping="Wrap" VerticalAlignment="Center" />
+                </DockPanel>
+            </Border>
+        </StackPanel>
+
+        <!-- Kaynaklara göre paketler -->
+        <Border Grid.Row="2" Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Line}"
+                BorderThickness="1" CornerRadius="8" Padding="0,6">
+            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" MaxHeight="380">
+                <ItemsControl ItemsSource="{Binding Groups}" Focusable="False">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate DataType="{x:Type vm:ConfirmGroup}">
+                            <StackPanel Margin="0,0,0,6">
+                                <TextBlock Text="{Binding Source}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource Dim}"
+                                           Margin="14,6,14,4" />
+                                <ItemsControl ItemsSource="{Binding Items}" Focusable="False">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate DataType="{x:Type vm:ConfirmItem}">
+                                            <Grid Margin="14,0" MinHeight="30">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Grid.Column="0" Text="{Binding Name}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"
+                                                           ToolTip="{Binding Name}" Margin="0,0,12,0" />
+                                                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,8,0">
+                                                    <TextBlock Text="{Binding Current}" Style="{StaticResource VersionText}" Foreground="{DynamicResource Muted}" />
+                                                    <TextBlock Text="&#xE72A;" FontFamily="{StaticResource IconFont}" FontSize="10" Margin="8,0"
+                                                               Foreground="{DynamicResource Dim}" VerticalAlignment="Center" />
+                                                    <TextBlock Text="{Binding Available}" Style="{StaticResource VersionText}" FontWeight="SemiBold" />
+                                                </StackPanel>
+                                                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                                                    <Border Style="{StaticResource Badge}" Background="{DynamicResource WarnSoft}" BorderBrush="{DynamicResource WarnEdge}"
+                                                            Visibility="{Binding IsMajor, Converter={StaticResource BoolToVis}}">
+                                                        <TextBlock Text="MAJOR" Style="{StaticResource BadgeText}" Foreground="{DynamicResource Warn}" />
+                                                    </Border>
+                                                    <Border Style="{StaticResource Badge}" Background="{DynamicResource AdminSoft}" BorderBrush="{DynamicResource AdminEdge}"
+                                                            Visibility="{Binding NeedsAdmin, Converter={StaticResource BoolToVis}}">
+                                                        <TextBlock Text="&#xE83D;" FontFamily="{StaticResource IconFont}" FontSize="10"
+                                                                   Foreground="{DynamicResource Admin}" VerticalAlignment="Center" />
+                                                    </Border>
+                                                    <Border Style="{StaticResource Badge}" Background="{DynamicResource DupSoft}" BorderBrush="{DynamicResource DupEdge}"
+                                                            Visibility="{Binding IsDuplicate, Converter={StaticResource BoolToVis}}">
+                                                        <TextBlock Text="ÇİFT" Style="{StaticResource BadgeText}" Foreground="{DynamicResource Dup}" />
+                                                    </Border>
+                                                </StackPanel>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+        </Border>
+
+        <!-- UAC bilgisi -->
+        <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="2,12,0,0">
+            <TextBlock x:Name="UacIcon" Text="&#xE83D;" FontFamily="{StaticResource IconFont}" FontSize="12" Margin="0,0,8,0"
+                       VerticalAlignment="Center" Foreground="{DynamicResource Dim}" />
+            <TextBlock x:Name="UacLabel" Text="{Binding UacText}" VerticalAlignment="Center" Foreground="{DynamicResource Muted}" />
+        </StackPanel>
+
+        <!-- Düğmeler -->
+        <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+            <Button Style="{StaticResource GhostBtn}" Content="Vazgeç" IsCancel="True" MinWidth="96" Margin="0,0,8,0"
+                    HorizontalAlignment="Stretch" />
+            <Button x:Name="UpdateButton" Style="{StaticResource PrimaryBtn}" IsDefault="True" MinWidth="112"
+                    HorizontalAlignment="Stretch" Click="Update_Click">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="&#xE74A;" Style="{StaticResource BtnIcon}" />
+                    <TextBlock Text="Güncelle" VerticalAlignment="Center" />
+                </StackPanel>
+            </Button>
+        </StackPanel>
+    </Grid>
+</Window>

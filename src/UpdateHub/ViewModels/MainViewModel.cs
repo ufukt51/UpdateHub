@@ -504,6 +504,25 @@ public sealed partial class MainViewModel : ObservableObject
         HideExcluded(package, $"{package.Id} {package.Available} sürümü atlandı; daha yeni sürüm çıkınca yine gösterilecek.");
     }
 
+    /// <summary>Sabitleme deseni sorar; vazgeçilirse null. Testler pencere açmamak için değiştirir.</summary>
+    public Func<PackageUpdate, string?> AskPinPattern { get; set; } = PinWindow.Ask;
+
+    /// <summary>Paketi bir sürüm desenine sabitler; desene uymayan sürümler gizlenir.</summary>
+    [RelayCommand]
+    private void Pin(PackageUpdate? package)
+    {
+        if (package is null || package.IsExcluded || AskPinPattern(package) is not { Length: > 0 } pattern)
+            return;
+        _config.AddPin(package, pattern);
+        if (_config.IsExcluded(package))
+        {
+            HideExcluded(package, $"{package.Id} {pattern} desenine sabitlendi; {package.Available} gizlendi.");
+            return;
+        }
+        if (SaveConfig())
+            Log($"[{package.Group?.DisplayName ?? package.Source.ToString()}] {package.Id} {pattern} desenine sabitlendi; {package.Available} desene uyduğu için listede kalıyor.");
+    }
+
     /// <summary>Paketin tüm hariç tutma kurallarını siler; paket yeniden güncellenebilir olur.</summary>
     [RelayCommand]
     private void RemoveExclusion(PackageUpdate? package)

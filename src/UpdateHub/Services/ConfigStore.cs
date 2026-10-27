@@ -178,6 +178,13 @@ public sealed class ConfigStore(string path)
         Config.Exclusions.Add(new() { Source = p.Source, Id = p.Id, Mode = ExclusionMode.SkipVersion, Version = p.Available });
     }
 
+    /// <summary>Paketi joker desene sabitler; önceki sabitlemenin yerine geçer. Kaydetmek çağırana kalır.</summary>
+    public void AddPin(PackageUpdate p, string pattern)
+    {
+        Config.Exclusions.RemoveAll(e => e.IsFor(p.Source, p.Id) && e.Mode == ExclusionMode.Pin);
+        Config.Exclusions.Add(new() { Source = p.Source, Id = p.Id, Mode = ExclusionMode.Pin, Pattern = pattern.Trim() });
+    }
+
     /// <summary>Paketin tüm kurallarını siler. Kaydetmek çağırana kalır.</summary>
     /// <returns>Silinen kural sayısı.</returns>
     public int RemoveExclusions(SourceKind source, string id) =>

@@ -372,6 +372,10 @@
                                       ToolTip="Yalnızca bu sürüm gizlenir; daha yeni sürüm çıkınca yine listelenir."
                                       Visibility="{Binding PlacementTarget.SelectedItem.ExclusionReason, RelativeSource={RelativeSource AncestorType=ContextMenu}, Converter={x:Static vm:NullToCollapsedConverter.Inverse}}"
                                       CommandParameter="{Binding PlacementTarget.SelectedItem, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                            <MenuItem Header="Sürüme sabitle…" Command="{Binding PinCommand}"
+                                      ToolTip="Desene uymayan sürümler gizlenir (ör. 8.* yalnızca 8.x sürümlerini gösterir)."
+                                      Visibility="{Binding PlacementTarget.SelectedItem.ExclusionReason, RelativeSource={RelativeSource AncestorType=ContextMenu}, Converter={x:Static vm:NullToCollapsedConverter.Inverse}}"
+                                      CommandParameter="{Binding PlacementTarget.SelectedItem, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
                             <MenuItem Header="Kuralı kaldır" Command="{Binding RemoveExclusionCommand}"
                                       ToolTip="Hariç tutma kuralı silinir; paket yeniden güncellenebilir."
                                       Visibility="{Binding PlacementTarget.SelectedItem.ExclusionReason, RelativeSource={RelativeSource AncestorType=ContextMenu}, Converter={x:Static vm:NullToCollapsedConverter.Instance}}"

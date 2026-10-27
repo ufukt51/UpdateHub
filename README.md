@@ -75,7 +75,7 @@ Biten her güncelleme `%LOCALAPPDATA%\UpdateHub\history.jsonl` dosyasına bir sa
 
 ## Hariç tutma
 
-Ayarlar `%APPDATA%\UpdateHub\config.json` dosyasındadır. Satıra sağ tıklayıp "Hariç tut" veya "Bu sürümü atla" ile eklenir; elle de düzenlenebilir:
+Ayarlar `%APPDATA%\UpdateHub\config.json` dosyasındadır. Satıra sağ tıklayıp "Hariç tut", "Bu sürümü atla" veya "Sürüme sabitle…" ile eklenir; elle de düzenlenebilir. Sabitleme penceresi kurulu sürümden desen önerir (`8.0.5` → `8.*`, `8.0.*`) ve önerilen sürümün gizlenip gizlenmeyeceğini hemen gösterir:
 
 ```json
 {

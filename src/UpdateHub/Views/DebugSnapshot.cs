@@ -44,6 +44,19 @@ internal static class DebugSnapshot
         await Save(confirm, basePath + "-confirm.png");
         confirm.Close();
 
+        // Sabitleme penceresi: önerilen desen, sonra gizleyen bir desen.
+        // Yalnızca pencere çizilir; kural eklenmez, bu yüzden hariç tutulan paket de olur.
+        if ((vm.Packages.FirstOrDefault(p => !p.IsExcluded) ?? vm.Packages.FirstOrDefault()) is { } pinned)
+        {
+            var model = new PinDialogModel(pinned);
+            var pin = new PinWindow(model) { Owner = window };
+            pin.Show();
+            await Save(pin, basePath + "-pin.png");
+            model.Pattern = "0.*";
+            await Save(pin, basePath + "-pin-hide.png");
+            pin.Close();
+        }
+
         if (vm.Tabs.Count > 2)
             vm.SelectedTab = vm.Tabs[2];
         await Save(window, basePath + "-2.png");

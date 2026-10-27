@@ -65,7 +65,11 @@ public partial class MainWindow : Window
     private void LogTabs_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         // İç ListBox'lardan kabaran olayları yok say.
-        if (e.OriginalSource != LogTabs || !RawTab.IsSelected)
+        if (e.OriginalSource != LogTabs)
+            return;
+        // Geçmiş dosyası arayüzden silinmez; Temizle sadece çıktı içindir.
+        ClearLogButton.Visibility = HistoryTab.IsSelected ? Visibility.Collapsed : Visibility.Visible;
+        if (!RawTab.IsSelected)
             return;
         RawLog.Text = string.Join(Environment.NewLine, LogLines);
         RawLog.ScrollToEnd();
@@ -74,7 +78,10 @@ public partial class MainWindow : Window
     private void CopyRaw_Click(object sender, RoutedEventArgs e)
     {
         // Ham metin yalnızca sekmesi açıkken dolar; Çıktı sekmesindeyken satırlardan kurulur.
-        var text = RawTab.IsSelected ? RawLog.Text : string.Join(Environment.NewLine, LogLines);
+        // Geçmiş sekmesinde kayıtlar sekmeyle ayrılmış satırlar olarak kopyalanır.
+        var text = HistoryTab.IsSelected ? string.Join(Environment.NewLine, ((MainViewModel)DataContext).History.Select(h => h.ToLine()))
+            : RawTab.IsSelected ? RawLog.Text
+            : string.Join(Environment.NewLine, LogLines);
         if (text.Length > 0)
             Clipboard.SetText(text);
     }

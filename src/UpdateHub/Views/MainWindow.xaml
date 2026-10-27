@@ -5,6 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="clr-namespace:UpdateHub.ViewModels"
         xmlns:m="clr-namespace:UpdateHub.Models"
+        xmlns:services="clr-namespace:UpdateHub.Services"
         mc:Ignorable="d"
         d:DataContext="{d:DesignInstance Type=vm:MainViewModel}"
         Title="UpdateHub" Height="760" Width="1180" MinWidth="820" MinHeight="520"
@@ -101,6 +102,66 @@
             <Setter Property="Foreground" Value="{DynamicResource Text}" />
             <Setter Property="FontWeight" Value="SemiBold" />
         </Style>
+
+        <!-- Geçmiş sekmesi: satır kabı ve satır şablonu. -->
+
+        <Style x:Key="HistoryItem" TargetType="ListBoxItem">
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            <Setter Property="Foreground" Value="{DynamicResource Text}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBoxItem">
+                        <Border x:Name="Bd" Background="Transparent" Padding="12,3">
+                            <ContentPresenter />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Hover}" />
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource Sel}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Sütun genişlikleri Geçmiş sekmesindeki başlıkla aynı. -->
+        <DataTemplate x:Key="HistoryRow" DataType="{x:Type services:HistoryEntry}">
+            <Grid TextElement.FontSize="12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="120" />
+                    <ColumnDefinition Width="100" />
+                    <ColumnDefinition Width="*" MinWidth="120" />
+                    <ColumnDefinition Width="230" />
+                    <ColumnDefinition Width="170" />
+                    <ColumnDefinition Width="70" />
+                    <ColumnDefinition Width="24" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="{Binding TimeText}" Style="{StaticResource VersionText}" />
+                <TextBlock Grid.Column="1" Text="{Binding Source}" Foreground="{DynamicResource Muted}" Style="{StaticResource CellText}" />
+                <TextBlock Grid.Column="2" Text="{Binding Id}" Style="{StaticResource CellText}" ToolTip="{Binding Id}" Margin="0,0,12,0" />
+                <TextBlock Grid.Column="3" Text="{Binding VersionText}" Style="{StaticResource VersionText}" ToolTip="{Binding VersionText}" Margin="0,0,12,0" />
+                <StackPanel Grid.Column="4" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Ellipse x:Name="Dot" Width="7" Height="7" Margin="0,0,8,0" Fill="{DynamicResource Bad}" VerticalAlignment="Center" />
+                    <TextBlock x:Name="Result" Text="{Binding ResultText}" Foreground="{DynamicResource Bad}" Style="{StaticResource CellText}" />
+                </StackPanel>
+                <TextBlock Grid.Column="5" Text="{Binding DurationText}" Style="{StaticResource VersionText}" TextAlignment="Right" />
+                <TextBlock Grid.Column="6" x:Name="Shield" Text="&#xE83D;" FontFamily="{StaticResource IconFont}" FontSize="11"
+                           Foreground="{DynamicResource Admin}" HorizontalAlignment="Right" VerticalAlignment="Center"
+                           ToolTip="Yönetici olarak çalıştı." Visibility="Hidden" />
+            </Grid>
+            <DataTemplate.Triggers>
+                <DataTrigger Binding="{Binding IsSuccess}" Value="True">
+                    <Setter TargetName="Dot" Property="Fill" Value="{DynamicResource Ok}" />
+                    <Setter TargetName="Result" Property="Foreground" Value="{DynamicResource Ok}" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding Elevated}" Value="True">
+                    <Setter TargetName="Shield" Property="Visibility" Value="Visible" />
+                </DataTrigger>
+            </DataTemplate.Triggers>
+        </DataTemplate>
     </Window.Resources>
 
     <Grid Margin="14,8,14,0">
@@ -510,10 +571,53 @@
                                  TextWrapping="NoWrap" AcceptsReturn="True" FontFamily="{StaticResource MonoFont}" FontSize="12" Padding="12,6"
                                  HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" />
                     </TabItem>
+                    <TabItem Header="Geçmiş" x:Name="HistoryTab" Style="{StaticResource LogTab}">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                            </Grid.RowDefinitions>
+                            <!-- Sütun başlıkları; genişlikler HistoryRow şablonuyla aynı. -->
+                            <Grid Margin="12,6,12,2" TextElement.Foreground="{DynamicResource Dim}" TextElement.FontSize="11">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="120" />
+                                    <ColumnDefinition Width="100" />
+                                    <ColumnDefinition Width="*" MinWidth="120" />
+                                    <ColumnDefinition Width="230" />
+                                    <ColumnDefinition Width="170" />
+                                    <ColumnDefinition Width="70" />
+                                    <ColumnDefinition Width="24" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="ZAMAN" />
+                                <TextBlock Grid.Column="1" Text="KAYNAK" />
+                                <TextBlock Grid.Column="2" Text="PAKET" />
+                                <TextBlock Grid.Column="3" Text="SÜRÜM" />
+                                <TextBlock Grid.Column="4" Text="SONUÇ" />
+                                <TextBlock Grid.Column="5" Text="SÜRE" TextAlignment="Right" />
+                            </Grid>
+                            <ListBox Grid.Row="1" x:Name="HistoryList" ItemsSource="{Binding History}"
+                                     ItemContainerStyle="{StaticResource HistoryItem}" ItemTemplate="{StaticResource HistoryRow}"
+                                     Background="Transparent" BorderThickness="0" Padding="0,0,0,6"
+                                     HorizontalContentAlignment="Stretch" ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                     VirtualizingPanel.IsVirtualizing="True" />
+                            <TextBlock Grid.Row="1" Text="Henüz güncelleme yapılmadı." Margin="12,8" Foreground="{DynamicResource Dim}">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding History.Count}" Value="0">
+                                                <Setter Property="Visibility" Value="Visible" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </Grid>
+                    </TabItem>
                 </TabControl>
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,5,8,0">
                     <Button Style="{StaticResource SmallBtn}" Content="Tümünü kopyala" Click="CopyRaw_Click" Margin="0,0,6,0" />
-                    <Button Style="{StaticResource SmallBtn}" Content="Temizle" Command="{Binding ClearLogCommand}" />
+                    <Button x:Name="ClearLogButton" Style="{StaticResource SmallBtn}" Content="Temizle" Command="{Binding ClearLogCommand}" />
                 </StackPanel>
             </Grid>
         </Border>

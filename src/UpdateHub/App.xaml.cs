@@ -22,10 +22,9 @@ public partial class App : Application
             return;
         }
 
-        // --check modu 7. kilometre taşında eklenecek.
-        if (e.Args.Contains("--check", StringComparer.OrdinalIgnoreCase))
+        if (e.Args.Contains(ConsoleCheck.Argument, StringComparer.OrdinalIgnoreCase))
         {
-            Shutdown(2);
+            RunCheck(runner);
             return;
         }
 
@@ -39,6 +38,24 @@ public partial class App : Application
         if (snapshot >= 0 && snapshot + 1 < e.Args.Length)
             DebugSnapshot.Run((MainWindow)MainWindow, vm, e.Args[snapshot + 1]);
 #endif
+    }
+
+    /// <summary>Pencere açmadan tarar, özeti konsola yazar ve çıkış koduyla kapanır.</summary>
+    private async void RunCheck(ProcessRunner runner)
+    {
+        int code;
+        try
+        {
+            var config = new ConfigStore(ConfigStore.DefaultPath);
+            config.Load();
+            // Hariç tutmalar (6. kilometre taşı) exclude parametresiyle verilir.
+            code = await ConsoleCheck.RunConsoleAsync(SourceCatalog.CreateAll(runner), config, exclude: null);
+        }
+        catch (Exception)
+        {
+            code = ConsoleCheck.Error;
+        }
+        Shutdown(code);
     }
 
     /// <summary>Pencere açmadan iş dosyasını çalıştırır ve çıkar.</summary>

@@ -15,19 +15,23 @@ namespace UpdateHub.ViewModels;
 public sealed partial class MainViewModel : ObservableObject
 {
     private const int MaxLogLines = 5000;
+    private const int MaxHistory = 500;
 
     private readonly ProcessRunner _runner;
     private readonly ConfigStore _config;
+    private readonly HistoryLog _history;
     private readonly ElevationBroker _broker = new();
     private readonly Dispatcher _dispatcher = Dispatcher.CurrentDispatcher;
     private readonly Dictionary<SourceKind, IReadOnlyList<string>> _installed = [];
     private CancellationTokenSource? _cts;
 
-    public MainViewModel(IEnumerable<IPackageSource> sources, ProcessRunner runner, ConfigStore? config = null)
+    public MainViewModel(IEnumerable<IPackageSource> sources, ProcessRunner runner, ConfigStore? config = null, HistoryLog? history = null)
     {
         _runner = runner;
         _config = config ?? new ConfigStore(ConfigStore.DefaultPath);
         _config.Load();
+        _history = history ?? new HistoryLog(HistoryLog.DefaultPath);
+        LoadHistory();
 
         var cvs = new CollectionViewSource { Source = Packages };
         cvs.GroupDescriptions.Add(new PropertyGroupDescription(nameof(PackageUpdate.Group)));
@@ -67,6 +71,9 @@ public sealed partial class MainViewModel : ObservableObject
     public ObservableCollection<PackageUpdate> Packages { get; } = [];
     public ICollectionView PackagesView { get; }
     public ObservableCollection<string> LogLines { get; } = [];
+
+    /// <summary>Geçmiş sekmesi: yeniden eskiye, en çok <see cref="MaxHistory"/> kayıt.</summary>
+    public ObservableCollection<HistoryEntry> History { get; } = [];
 
     public AllSourcesTab AllTab { get; } = new();
     public IReadOnlyList<ISourceTab> Tabs { get; }
@@ -229,6 +236,7 @@ public sealed partial class MainViewModel : ObservableObject
                     var r = await _runner.RunAsync(cmd.FileName, cmd.Arguments,
                         (line, _) => _dispatcher.BeginInvoke(() => Log(line)), ct);
                     Log($"< çıkış kodu {r.ExitCode} ({r.Duration.TotalSeconds:0.0} sn)");
+                    RecordHistory(pkgs, r.ExitCode, (long)r.Duration.TotalMilliseconds, Environment.IsPrivilegedProcess);
                     ok += ApplyExitCode(pkgs, r.ExitCode);
                 }
                 catch (OperationCanceledException)
@@ -285,6 +293,7 @@ public sealed partial class MainViewModel : ObservableObject
                     break;
                 case ElevationEventType.Exit when pkgs is not null:
                     Log($"< çıkış kodu {ev.ExitCode} ({(ev.DurationMs ?? 0) / 1000.0:0.0} sn)");
+                    RecordHistory(pkgs, ev.ExitCode, ev.DurationMs ?? 0, elevated: true);
                     ok += ApplyExitCode(pkgs, ev.ExitCode ?? -1);
                     finished[ev.Index] = true;
                     break;
@@ -361,6 +370,44 @@ public sealed partial class MainViewModel : ObservableObject
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             Log($"Ayar dosyası yazılamadı: {ex.Message}");
+        }
+    }
+
+    // ---------- Geçmiş ----------
+
+    private void LoadHistory()
+    {
+        try
+        {
+            foreach (var e in _history.ReadRecent(MaxHistory))
+                History.Add(e);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Log($"Geçmiş okunamadı: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Çıkış kodu alınan her işi paket başına bir satır olarak geçmişe yazar.
+    /// İptal edilen, UAC'si reddedilen veya hiç başlatılamayan işler yazılmaz.
+    /// </summary>
+    private void RecordHistory(List<PackageUpdate> pkgs, int? exitCode, long durationMs, bool elevated)
+    {
+        var now = DateTimeOffset.Now;
+        var entries = pkgs.Select(p => new HistoryEntry(now, p.Source, p.Id, p.Current, p.Available, exitCode, durationMs, elevated)).ToList();
+        foreach (var e in entries)
+            History.Insert(0, e);
+        while (History.Count > MaxHistory)
+            History.RemoveAt(History.Count - 1);
+
+        try
+        {
+            _history.Append(entries);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Log($"Geçmiş dosyası yazılamadı: {ex.Message}");
         }
     }
 

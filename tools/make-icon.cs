@@ -66,25 +66,21 @@ static byte[] Render(int size)
         dc.DrawRoundedRectangle(background, null, new Rect(8, 8, 240, 240), 56, 56);
 
         var white = Brushes.White;
-        // Küçük boyutlarda halka okunmaz; sadece kalın yukarı ok çizilir.
-        var small = size <= 24;
-        var stroke = new Pen(white, small ? 34 : 22) { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round, LineJoin = PenLineJoin.Round };
+        // Tüm boyutlar aynı tasarım (pencere içi ve dışı aynı görünsün); küçüklerde çizgi kalınlaşır.
+        var stroke = new Pen(white, size <= 24 ? 26 : 22) { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round, LineJoin = PenLineJoin.Round };
 
-        if (!small)
-        {
-            // Yenileme halkası: tepede boşluk bırakan 280°'lik yay.
-            var ring = new PathGeometry([new PathFigure(new Point(174.3, 72.8),
-                [new ArcSegment(new Point(81.7, 72.8), new Size(72, 72), 0, true, SweepDirection.Clockwise, true)], false)]);
-            dc.DrawGeometry(null, stroke, ring);
+        // Yenileme halkası: tepede boşluk bırakan 280°'lik yay.
+        var ring = new PathGeometry([new PathFigure(new Point(174.3, 72.8),
+            [new ArcSegment(new Point(81.7, 72.8), new Size(72, 72), 0, true, SweepDirection.Clockwise, true)], false)]);
+        dc.DrawGeometry(null, stroke, ring);
 
-            // Halkanın ucundaki ok başı (saat yönünde teğet).
-            var head = new PathGeometry([new PathFigure(new Point(108, 50),
-                [new LineSegment(new Point(62, 51), true), new LineSegment(new Point(97, 96), true)], true)]);
-            dc.DrawGeometry(white, new Pen(white, 6) { LineJoin = PenLineJoin.Round }, head);
-        }
+        // Halkanın ucundaki ok başı (saat yönünde teğet).
+        var head = new PathGeometry([new PathFigure(new Point(108, 50),
+            [new LineSegment(new Point(62, 51), true), new LineSegment(new Point(97, 96), true)], true)]);
+        dc.DrawGeometry(white, new Pen(white, 6) { LineJoin = PenLineJoin.Round }, head);
 
         // Ortadaki yukarı ok.
-        var (top, bottom, wing) = small ? (64.0, 196.0, 56.0) : (98.0, 168.0, 30.0);
+        var (top, bottom, wing) = (98.0, 168.0, 30.0);
         dc.DrawLine(stroke, new Point(128, bottom), new Point(128, top));
         dc.DrawGeometry(null, stroke, new PathGeometry([new PathFigure(new Point(128 - wing, top + wing),
             [new LineSegment(new Point(128, top), true), new LineSegment(new Point(128 + wing, top + wing), true)], false)]));

@@ -31,12 +31,27 @@ internal static class DebugSnapshot
             first.IsSelected = true;
         await Save(window, basePath + "-1.png");
         await Save(window.UpdateButton, basePath + "-button.png", 8);
+        // İşaretli onay kutusu: ilk paket seçili olduğu için tablodaki ilk işaretli kutu.
+        var check = Descendants(window.PackagesGrid).OfType<System.Windows.Controls.CheckBox>().FirstOrDefault(c => c.IsChecked == true);
+        if (check is not null)
+            await Save(check, basePath + "-check.png", 12);
 
         if (vm.Tabs.Count > 2)
             vm.SelectedTab = vm.Tabs[2];
         await Save(window, basePath + "-2.png");
 
         Application.Current.Shutdown();
+    }
+
+    private static IEnumerable<DependencyObject> Descendants(DependencyObject root)
+    {
+        for (int i = 0; i < VisualTreeHelper.GetChildrenCount(root); i++)
+        {
+            var child = VisualTreeHelper.GetChild(root, i);
+            yield return child;
+            foreach (var d in Descendants(child))
+                yield return d;
+        }
     }
 
     private static Task Save(Window window, string path) =>

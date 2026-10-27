@@ -115,30 +115,30 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="CheckBox">
-                    <Border x:Name="Box" Width="18" Height="18" CornerRadius="4" Background="Transparent"
-                            BorderBrush="{DynamicResource Dim}" BorderThickness="1.5">
-                        <Grid>
-                            <Path x:Name="Mark" Data="M 3.5,8.5 L 7,12 L 13.5,4.5" Stroke="{DynamicResource OnAccent}" StrokeThickness="2"
-                                  StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
-                                  Width="15" Height="15" Visibility="Collapsed" />
-                            <Rectangle x:Name="Dash" Width="8" Height="2" RadiusX="1" RadiusY="1" Fill="{DynamicResource OnAccent}" Visibility="Collapsed" />
-                        </Grid>
-                    </Border>
+                    <!-- Dolgu ile çerçeve ayrı katman: aynı Border'da dolgu çerçevenin içine çizilir ve kenarda açık bir halka kalır. -->
+                    <Grid Width="18" Height="18" Background="Transparent" UseLayoutRounding="True">
+                        <Border x:Name="Fill" CornerRadius="4" Background="Transparent" />
+                        <Border x:Name="Outline" CornerRadius="4" BorderBrush="{DynamicResource Dim}" BorderThickness="1.5" />
+                        <!-- Koordinatlar 18 px kutuya göre; işaret tam ortada. -->
+                        <Path x:Name="Mark" Data="M 4.75,9.25 L 7.75,12.25 L 13.25,6" Stroke="{DynamicResource OnAccent}" StrokeThickness="2"
+                              StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" Visibility="Collapsed" />
+                        <Rectangle x:Name="Dash" Width="8" Height="2" RadiusX="1" RadiusY="1" Fill="{DynamicResource OnAccent}" Visibility="Collapsed" />
+                    </Grid>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="Box" Property="BorderBrush" Value="{DynamicResource Muted}" />
+                            <Setter TargetName="Outline" Property="BorderBrush" Value="{DynamicResource Muted}" />
                         </Trigger>
                         <Trigger Property="IsKeyboardFocused" Value="True">
-                            <Setter TargetName="Box" Property="BorderBrush" Value="{DynamicResource Accent}" />
+                            <Setter TargetName="Outline" Property="BorderBrush" Value="{DynamicResource Accent}" />
                         </Trigger>
                         <Trigger Property="IsChecked" Value="True">
-                            <Setter TargetName="Box" Property="Background" Value="{DynamicResource Accent}" />
-                            <Setter TargetName="Box" Property="BorderBrush" Value="{DynamicResource Accent}" />
+                            <Setter TargetName="Fill" Property="Background" Value="{DynamicResource Accent}" />
+                            <Setter TargetName="Outline" Property="Visibility" Value="Collapsed" />
                             <Setter TargetName="Mark" Property="Visibility" Value="Visible" />
                         </Trigger>
                         <Trigger Property="IsChecked" Value="{x:Null}">
-                            <Setter TargetName="Box" Property="Background" Value="{DynamicResource Accent}" />
-                            <Setter TargetName="Box" Property="BorderBrush" Value="{DynamicResource Accent}" />
+                            <Setter TargetName="Fill" Property="Background" Value="{DynamicResource Accent}" />
+                            <Setter TargetName="Outline" Property="Visibility" Value="Collapsed" />
                             <Setter TargetName="Dash" Property="Visibility" Value="Visible" />
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">

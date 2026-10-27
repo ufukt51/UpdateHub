@@ -30,6 +30,13 @@ public partial class App : Application
 
         var vm = new MainViewModel(SourceCatalog.CreateAll(runner), runner);
         MainWindow = new MainWindow { DataContext = vm };
+
+        if (e.Args.Contains(AutoStart.Argument, StringComparer.OrdinalIgnoreCase))
+        {
+            ShowIfUpdates(vm);
+            return;
+        }
+
         MainWindow.Show();
         vm.ScanCommand.Execute(null);
 
@@ -56,6 +63,27 @@ public partial class App : Application
             code = ConsoleCheck.Error;
         }
         Shutdown(code);
+    }
+
+    /// <summary>
+    /// Windows açılışı (<c>--startup</c>): pencere açmadan tarar.
+    /// Hariç tutulmayan güncelleme varsa pencereyi açar, yoksa sessizce kapanır.
+    /// </summary>
+    private async void ShowIfUpdates(MainViewModel vm)
+    {
+        try
+        {
+            await vm.ScanCommand.ExecuteAsync(null);
+            if (vm.AllTab.Count > 0)
+            {
+                MainWindow.Show();
+                return;
+            }
+        }
+        catch (Exception)
+        {
+        }
+        Shutdown();
     }
 
     /// <summary>Pencere açmadan iş dosyasını çalıştırır ve çıkar.</summary>

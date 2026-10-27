@@ -663,6 +663,10 @@
 
         <!-- Durum çubuğu -->
         <DockPanel Grid.Row="4">
+            <CheckBox DockPanel.Dock="Right" Margin="12,0,0,0" VerticalAlignment="Center" IsChecked="{Binding StartWithWindows}"
+                      ToolTip="Oturum açılınca pencere açmadan tarar; güncelleme varsa pencereyi açar, yoksa kapanır.">
+                <TextBlock Text="Windows açılışında başlat" FontSize="12" Foreground="{DynamicResource Muted}" />
+            </CheckBox>
             <Button DockPanel.Dock="Right" Style="{StaticResource SmallBtn}" Content="Microsoft.WinGet.Client kur"
                     Command="{Binding InstallWingetModuleCommand}"
                     Visibility="{Binding Sources[0].Warning, Converter={x:Static vm:NullToCollapsedConverter.Instance}}"

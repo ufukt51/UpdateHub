@@ -25,6 +25,15 @@ Kurulu olmayan kaynaklar "kurulu değil" olarak gösterilir ve atlanır.
 - Sağ tık > "Komutu kopyala" ile güncelleme komutunu panoya alabilirsiniz.
 - Biten her güncelleme geçmişe yazılır ve alt paneldeki **Geçmiş** sekmesinde listelenir (aşağıya bakın).
 - `--check` modu pencere açmadan tarar; PowerShell profilinden kullanılabilir.
+- Windows açılışında başlayabilir; güncelleme yoksa pencere açılmaz (aşağıya bakın).
+
+## Windows açılışında başlatma
+
+Durum çubuğundaki **Windows açılışında başlat** kutusu, çalışan exe'yi `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` altına `"…\UpdateHub.exe" --startup` olarak kaydeder. Yönetici gerekmez. Giriş Ayarlar > Uygulamalar > Başlangıç'ta da görünür; oradan kapatılırsa kutu da kapalı görünür.
+
+`--startup` ile açılınca uygulama pencere açmadan tarar. Hariç tutulmayan güncelleme varsa pencere açılır, yoksa uygulama sessizce kapanır.
+
+Kayıt exe'nin tam yolunu tutar. Bu yüzden kutuyu sabit bir klasördeki yayından (`publish\UpdateHub.exe`) açın; `bin\Debug` sürümünden açarsanız kayıt o exe'yi gösterir.
 
 ## `--check` modu
 
@@ -157,6 +166,7 @@ tests/UpdateHub.Tests/
 - [x] Güncelleme geçmişi ve "Geçmiş" sekmesi
 - [x] `--check` modu (konsola özet, çıkış kodu 0/1/2)
 - [x] Tek dosyalık yayın
+- [x] Windows açılışında başlatma (`--startup`)
 
 ## Lisans
 

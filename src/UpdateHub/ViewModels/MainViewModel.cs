@@ -21,14 +21,19 @@ public sealed partial class MainViewModel : ObservableObject
     private readonly ProcessRunner _runner;
     private readonly ConfigStore _config;
     private readonly HistoryLog _history;
+    private readonly AutoStart _autoStart;
     private readonly ElevationBroker _broker = new();
     private readonly Dispatcher _dispatcher = Dispatcher.CurrentDispatcher;
     private readonly Dictionary<SourceKind, IReadOnlyList<string>> _installed = [];
     private CancellationTokenSource? _cts;
 
-    public MainViewModel(IEnumerable<IPackageSource> sources, ProcessRunner runner, ConfigStore? config = null, HistoryLog? history = null)
+    public MainViewModel(IEnumerable<IPackageSource> sources, ProcessRunner runner, ConfigStore? config = null, HistoryLog? history = null,
+        AutoStart? autoStart = null)
     {
         _runner = runner;
+        _autoStart = autoStart ?? new AutoStart();
+        if (_autoStart.Command is { } registered && !_autoStart.PointsTo(Environment.ProcessPath ?? ""))
+            Log($"Windows açılışında başka bir exe başlatılıyor: {registered}. Bu exe'yi kaydetmek için kutuyu kapatıp yeniden açın.");
         _config = config ?? new ConfigStore(ConfigStore.DefaultPath);
         _config.Load();
         if (_config.LoadError is not null)
@@ -565,6 +570,33 @@ public sealed partial class MainViewModel : ObservableObject
         var r = await _runner.RunAsync(pwsh, ["-NoProfile", "-NonInteractive", "-Command", WingetSource.InstallModuleScript],
             (line, _) => _dispatcher.BeginInvoke(() => Log(line)));
         Log($"< çıkış kodu {r.ExitCode}. Yeniden taradığınızda modül kullanılır.");
+    }
+
+    /// <summary>
+    /// Windows açılışında bu exe <c>--startup</c> ile başlasın mı? Durum her okumada kayıt defterinden gelir;
+    /// yazma başarısız olursa kutu gerçek duruma döner.
+    /// </summary>
+    public bool StartWithWindows
+    {
+        get => _autoStart.IsEnabled;
+        set
+        {
+            try
+            {
+                if (value)
+                    _autoStart.Enable(Environment.ProcessPath!);
+                else
+                    _autoStart.Disable();
+                Log(value
+                    ? $"Windows açılışında başlatılacak: {_autoStart.Command}"
+                    : "Windows açılışında başlatma kapatıldı.");
+            }
+            catch (Exception ex) when (ex is UnauthorizedAccessException or IOException or System.Security.SecurityException)
+            {
+                Log($"Açılış kaydı yazılamadı: {ex.Message}");
+            }
+            OnPropertyChanged();
+        }
     }
 
     [RelayCommand]

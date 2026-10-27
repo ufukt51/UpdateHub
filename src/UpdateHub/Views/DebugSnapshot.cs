@@ -48,6 +48,12 @@ internal static class DebugSnapshot
             vm.SelectedTab = vm.Tabs[2];
         await Save(window, basePath + "-2.png");
 
+        // Geçmiş sekmesi: dosyaya yazmadan örnek iki satır.
+        vm.History.Insert(0, new Services.HistoryEntry(DateTimeOffset.Now, Models.SourceKind.Choco, "python", "3.15.0", "3.15.2", 0, 41200, true));
+        vm.History.Insert(0, new Services.HistoryEntry(DateTimeOffset.Now, Models.SourceKind.Winget, "RARLab.WinRAR", "7.00.0", "7.23.0", 1, 3100, false));
+        window.HistoryTab.IsSelected = true;
+        await Save(window, basePath + "-3.png");
+
         Application.Current.Shutdown();
     }
 
@@ -75,7 +81,12 @@ internal static class DebugSnapshot
         // VisualBrush ile çizilir; öğenin ebeveyn içindeki konumu görüntüyü kaydırmaz.
         var visual = new DrawingVisual();
         using (var dc = visual.RenderOpen())
-            dc.DrawRectangle(new VisualBrush(root), null, new Rect(0, 0, root.ActualWidth, root.ActualHeight));
+        {
+            // Viewbox öğenin kendi sınırları; taşan alt öğeler görüntüyü küçültmez.
+            var bounds = new Rect(0, 0, root.ActualWidth, root.ActualHeight);
+            var brush = new VisualBrush(root) { ViewboxUnits = BrushMappingMode.Absolute, Viewbox = bounds, Stretch = Stretch.None };
+            dc.DrawRectangle(brush, null, bounds);
+        }
         bitmap.Render(visual);
         var encoder = new PngBitmapEncoder();
         encoder.Frames.Add(BitmapFrame.Create(bitmap));

@@ -23,6 +23,77 @@ Kurulu olmayan kaynaklar "kurulu değil" olarak gösterilir ve atlanır.
 - Güncellemeler sırayla çalışır. Çıktı canlı akar ve iptal edilebilir. "Ham metin" sekmesinden çıktının tamamı kopyalanabilir.
 - Yönetici gerektiren işler tek UAC onayıyla toplu çalışır (aşağıya bakın).
 - Sağ tık > "Komutu kopyala" ile güncelleme komutunu panoya alabilirsiniz.
+- Biten her güncelleme geçmişe yazılır ve alt paneldeki **Geçmiş** sekmesinde listelenir (aşağıya bakın).
+- `--check` modu pencere açmadan tarar; PowerShell profilinden kullanılabilir.
+
+## `--check` modu
+
+Pencere açmaz. Tüm kaynakları tarar, kaynak bazında özet yazar ve çıkış koduyla kapanır:
+
+| Kod | Anlamı |
+|---|---|
+| 0 | Güncelleme yok |
+| 1 | Güncelleme var (bazı kaynaklar hata verse bile) |
+| 2 | Güncelleme bulunamadı ve en az bir kaynak hata verdi |
+
+Örnek çıktı:
+
+```
+winget        2 güncelleme (1 gizlendi)
+  Poly.PolyStudio  5.1.0.1111 → 5.2.0.741
+  RARLab.WinRAR    7.00.0 → 7.23.0
+Chocolatey    kurulu değil
+npm (global)  güncel
+dotnet tools  1 güncelleme
+  dotnet-ef  8.0.5 → 10.0.1  MAJOR
+
+Toplam 3 güncelleme.
+```
+
+UpdateHub bir pencere uygulaması (WinExe) olduğu için cmd ve PowerShell onu beklemez. PowerShell'de çıktıyı bir boruya verin; boru PowerShell'i bekletir ve `$LASTEXITCODE` dolar. Profil (`$PROFILE`) örneği:
+
+```powershell
+& "C:\Araclar\UpdateHub.exe" --check | Out-Host
+if ($LASTEXITCODE -eq 1) { Write-Host "Güncelleme var: UpdateHub'ı açın." -ForegroundColor Yellow }
+```
+
+- Çıktı konsolun kod sayfasıyla yazılır. Kod sayfasında olmayan karakterler düzleşir (ör. `→` yerine `->`). Tam Unicode için profilde önce `[Console]::OutputEncoding = [Text.Encoding]::UTF8` ayarlayın.
+- cmd'den doğrudan çalıştırıldığında çıktı istemden sonra yazılır; bitince Enter'a basın. Çıkış kodu cmd'de alınamaz.
+- Hariç tutmalar ve "gizlendi" kuralları pencereyle aynıdır.
+
+## Geçmiş
+
+Biten her güncelleme `%LOCALAPPDATA%\UpdateHub\history.jsonl` dosyasına bir satır olarak eklenir:
+
+```json
+{"ts":"2026-10-27T14:30:00+03:00","source":"Npm","id":"npm","from":"12.0.2","to":"12.2.1","exitCode":0,"durationMs":4200,"elevated":false}
+```
+
+- Toplu komutlarda (ör. choco) her paket ayrı satırdır; süre ve çıkış kodu ortaktır.
+- İptal edilen, UAC'si reddedilen veya hiç başlatılamayan işler yazılmaz.
+- Bozuk satırlar okurken atlanır. Geçmiş sekmesi son 500 kaydı gösterir. "Tümünü kopyala" kayıtları sekmeyle ayrılmış metin olarak kopyalar.
+
+## Hariç tutma
+
+Ayarlar `%APPDATA%\UpdateHub\config.json` dosyasındadır. Satıra sağ tıklayıp "Hariç tut" veya "Bu sürümü atla" ile eklenir; elle de düzenlenebilir:
+
+```json
+{
+  "exclusions": [
+    { "source": "DotnetTool", "id": "dotnet-ef", "mode": "pin", "pattern": "8.*" },
+    { "source": "Pip", "id": "certifi", "mode": "skipVersion", "version": "2026.10.23" },
+    { "source": "Choco", "id": "visualstudio2019buildtools", "mode": "ignore" }
+  ]
+}
+```
+
+| `mode` | Etkisi |
+|---|---|
+| `ignore` | Paket hiç gösterilmez. |
+| `pin` | Yeni sürüm `pattern` desenine uymuyorsa gösterilmez. |
+| `skipVersion` | Sadece `version` sürümü atlanır; daha yenisi çıkınca yine görünür. |
+
+`source` değerleri: `Winget`, `Choco`, `Npm`, `Uv`, `Pip`, `PythonRuntime`, `DotnetTool`.
 
 ## Yönetici yetkisi
 
@@ -54,7 +125,7 @@ Tek dosya halinde yayınlamak için:
 dotnet publish src/UpdateHub -c Release -o publish
 ```
 
-Çıktı `publish\UpdateHub.exe` olur (framework'e bağlı, tek dosya).
+Çıktı `publish\UpdateHub.exe` olur (framework'e bağlı, tek dosya, yaklaşık 1,3 MB).
 
 İkon `tools/make-icon.cs` ile üretilir:
 
@@ -68,7 +139,7 @@ dotnet run tools/make-icon.cs -- src/UpdateHub/Assets/UpdateHub.ico
 src/UpdateHub/
   Sources/           kaynak başına tarama ve güncelleme komutları
   Sources/Parsers/   CLI çıktılarını ayrıştıran saf fonksiyonlar
-  Services/          süreç çalıştırma, sürüm karşılaştırma, çift tespiti
+  Services/          süreç çalıştırma, sürüm karşılaştırma, çift tespiti, geçmiş, --check
   Services/Elevation tek UAC ile yönetici işleri
   ViewModels/ Views/ WPF arayüzü (CommunityToolkit.Mvvm)
 tests/UpdateHub.Tests/
@@ -80,9 +151,10 @@ tests/UpdateHub.Tests/
 - [x] Tarama, gruplu tablo, rozetler
 - [x] Sıralı güncelleme, canlı çıktı, iptal
 - [x] Tek UAC ile yönetici işleri
-- [ ] Hariç tutma (`ignore`, `pin`, `skipVersion`) ve onay penceresi
-- [ ] Güncelleme geçmişi ve "Geçmiş" sekmesi
-- [ ] `--check` modu (konsola özet, çıkış kodu 0/1/2)
+- [x] Hariç tutma (`ignore`, `pin`, `skipVersion`) ve onay penceresi
+- [x] Güncelleme geçmişi ve "Geçmiş" sekmesi
+- [x] `--check` modu (konsola özet, çıkış kodu 0/1/2)
+- [x] Tek dosyalık yayın
 
 ## Lisans
 

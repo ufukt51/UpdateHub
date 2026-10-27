@@ -36,6 +36,14 @@ internal static class DebugSnapshot
         if (check is not null)
             await Save(check, basePath + "-check.png", 12);
 
+        // Onay penceresi: her kaynaktan ilk paket seçili.
+        var picked = vm.Packages.GroupBy(p => p.Source).Select(g => g.First()).ToList();
+        var confirm = new ConfirmUpdateWindow(ConfirmSummary.Create(picked,
+            picked.GroupBy(p => p.Group!).SelectMany(g => g.Key.Source.CreateUpdateJob([.. g])), false)) { Owner = window };
+        confirm.Show();
+        await Save(confirm, basePath + "-confirm.png");
+        confirm.Close();
+
         if (vm.Tabs.Count > 2)
             vm.SelectedTab = vm.Tabs[2];
         await Save(window, basePath + "-2.png");

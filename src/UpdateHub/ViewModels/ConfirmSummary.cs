@@ -62,7 +62,8 @@ public sealed class ConfirmSummary
         var duplicates = selected
             .Where(p => p.DuplicateGroup is not null)
             .GroupBy(p => p.DuplicateGroup!, StringComparer.OrdinalIgnoreCase)
-            .Where(g => g.Count() > 1)
+            // Aynı kaynaktaki kopyalar (choco python + python3) birlikte güncellenir; uyarı yalnızca farklı kaynaklarda.
+            .Where(g => g.Select(p => p.Source).Distinct().Count() > 1)
             .Select(g => (IReadOnlyList<PackageUpdate>)[.. g.OrderBy(p => p.Source)])
             .ToList();
         var duplicateSet = duplicates.SelectMany(d => d).ToHashSet();

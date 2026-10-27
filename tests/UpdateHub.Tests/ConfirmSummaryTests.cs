@@ -77,6 +77,15 @@ public class ConfirmSummaryTests
         s.Groups[0].Items[0].IsDuplicate.ShouldBeFalse();
     }
 
+    [Fact]
+    public void DuplicatesFromSameSource_DoNotWarn()
+    {
+        var s = ConfirmSummary.Create(
+            [Pkg(SourceKind.Choco, "python", dup: "python"), Pkg(SourceKind.Choco, "python3", dup: "python")], [], false);
+
+        s.DuplicateWarning.ShouldBeNull();
+    }
+
     [Theory]
     [InlineData(false, false, 0)]
     [InlineData(true, false, 1)]

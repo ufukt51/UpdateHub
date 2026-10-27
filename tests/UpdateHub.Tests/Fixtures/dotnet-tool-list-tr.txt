@@ -1,0 +1,5 @@
+Paket Kimliği      Sürüm      Komutlar
+--------------------------------------
+dotnet-ef          8.0.5      dotnet-ef
+dotnet-outdated-tool 4.6.4    dotnet-outdated
+powershell         7.5.0-preview.2 pwsh

@@ -1,0 +1,6 @@
+* text=auto
+*.cs text eol=crlf
+*.xaml text eol=crlf
+# Fixture dosyaları CLI çıktısının birebir kopyasıdır ( dahil); dokunulmasın.
+tests/UpdateHub.Tests/Fixtures/** -text
+*.ico binary

@@ -1,0 +1,3 @@
+Package Id      Version      Commands
+-------------------------------------
+dotnet-ef       8.0.5        dotnet-ef

@@ -1,0 +1,239 @@
+<Window x:Class="UpdateHub.Views.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="clr-namespace:UpdateHub.ViewModels"
+        mc:Ignorable="d"
+        d:DataContext="{d:DesignInstance Type=vm:MainViewModel}"
+        Title="UpdateHub" Height="760" Width="1180" MinWidth="760" MinHeight="480"
+        Icon="/Assets/UpdateHub.ico"
+        WindowStartupLocation="CenterScreen">
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis" />
+
+        <Style x:Key="Badge" TargetType="Border">
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="Padding" Value="6,1" />
+            <Setter Property="Margin" Value="0,0,4,0" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+        <Style x:Key="BadgeText" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="FontSize" Value="11" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="200" MinHeight="80" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- Araç çubuğu -->
+        <DockPanel Grid.Row="0" LastChildFill="False">
+            <Button DockPanel.Dock="Left" Content="Tara" Command="{Binding ScanCommand}" MinWidth="90" Margin="0,0,8,0" />
+            <Button DockPanel.Dock="Left" Command="{Binding UpdateSelectedCommand}" MinWidth="110"
+                    ToolTip="Seçili paketleri güncelle (tüm sekmelerdeki seçimler dahil)"
+                    Style="{DynamicResource AccentButtonStyle}" Margin="0,0,8,0">
+                <!-- Fluent düğme şablonu ContentStringFormat'ı uygulamıyor; metin Run'larla kurulur. -->
+                <TextBlock>
+                    <Run Text="Güncelle" />
+                    <Run Text="{Binding SelectedCount, Mode=OneWay}" FontWeight="SemiBold" />
+                </TextBlock>
+            </Button>
+            <Button DockPanel.Dock="Left" Content="İptal" Command="{Binding CancelCommand}" MinWidth="80" />
+            <TextBox DockPanel.Dock="Right" Width="260" Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+                     ToolTip="Ad veya kimliğe göre ara" />
+            <TextBlock DockPanel.Dock="Right" Text="Ara:" VerticalAlignment="Center" Margin="0,0,8,0" />
+        </DockPanel>
+
+        <!-- Kaynak sekmeleri: ad + sayı rozeti -->
+        <ListBox Grid.Row="1" ItemsSource="{Binding Tabs}" SelectedItem="{Binding SelectedTab}" Margin="0,10,0,6"
+                 Background="Transparent" BorderThickness="0" Padding="0"
+                 ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+            <ListBox.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <WrapPanel />
+                </ItemsPanelTemplate>
+            </ListBox.ItemsPanel>
+            <ListBox.ItemContainerStyle>
+                <Style TargetType="ListBoxItem">
+                    <Setter Property="ToolTip" Value="{Binding Hint}" />
+                    <Setter Property="Cursor" Value="Hand" />
+                    <Setter Property="Template">
+                        <Setter.Value>
+                            <ControlTemplate TargetType="ListBoxItem">
+                                <Grid Margin="0,0,4,0" Background="Transparent">
+                                    <Border x:Name="Bg" CornerRadius="4" Padding="12,7" Background="Transparent">
+                                        <ContentPresenter />
+                                    </Border>
+                                    <Border x:Name="Underline" Height="3" Width="18" CornerRadius="1.5" VerticalAlignment="Bottom"
+                                            Background="{DynamicResource AccentFillColorDefaultBrush}" Visibility="Hidden" />
+                                </Grid>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="Bg" Property="Background" Value="{DynamicResource SubtleFillColorSecondaryBrush}" />
+                                    </Trigger>
+                                    <Trigger Property="IsSelected" Value="True">
+                                        <Setter TargetName="Bg" Property="Background" Value="{DynamicResource SubtleFillColorSecondaryBrush}" />
+                                        <Setter TargetName="Underline" Property="Visibility" Value="Visible" />
+                                        <Setter Property="FontWeight" Value="SemiBold" />
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Setter.Value>
+                    </Setter>
+                </Style>
+            </ListBox.ItemContainerStyle>
+            <ListBox.ItemTemplate>
+                <DataTemplate>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="{Binding DisplayName}" VerticalAlignment="Center" />
+                        <Border x:Name="Pill" CornerRadius="9" MinWidth="22" Height="18" Padding="6,0" Margin="8,0,0,0"
+                                VerticalAlignment="Center" Background="#33808080">
+                            <TextBlock x:Name="PillText" Text="{Binding Badge}" FontSize="11" FontWeight="SemiBold"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                    </StackPanel>
+                    <DataTemplate.Triggers>
+                        <DataTrigger Binding="{Binding BadgeKind}" Value="Accent">
+                            <Setter TargetName="Pill" Property="Background" Value="{DynamicResource AccentFillColorDefaultBrush}" />
+                            <Setter TargetName="PillText" Property="Foreground" Value="{DynamicResource TextOnAccentFillColorPrimaryBrush}" />
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding BadgeKind}" Value="Error">
+                            <Setter TargetName="Pill" Property="Background" Value="#C42B1C" />
+                            <Setter TargetName="PillText" Property="Foreground" Value="White" />
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding Badge}" Value="">
+                            <Setter TargetName="Pill" Property="Visibility" Value="Collapsed" />
+                        </DataTrigger>
+                    </DataTemplate.Triggers>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+
+        <!-- Güncellemeler -->
+        <DataGrid Grid.Row="2" x:Name="PackagesGrid" ItemsSource="{Binding PackagesView}"
+                  AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False"
+                  SelectionMode="Single" HeadersVisibility="Column" GridLinesVisibility="None"
+                  IsReadOnly="False">
+            <DataGrid.ContextMenu>
+                <ContextMenu>
+                    <MenuItem Header="Komutu kopyala" Command="{Binding CopyCommand}"
+                              CommandParameter="{Binding PlacementTarget.SelectedItem, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                </ContextMenu>
+            </DataGrid.ContextMenu>
+
+            <DataGrid.GroupStyle>
+                <GroupStyle>
+                    <GroupStyle.ContainerStyle>
+                        <Style TargetType="GroupItem">
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="GroupItem">
+                                        <Expander IsExpanded="True" Margin="0,4,0,0">
+                                            <Expander.Header>
+                                                <StackPanel Orientation="Horizontal">
+                                                    <CheckBox IsChecked="{Binding Name.IsAllSelected}" ToolTip="Tümünü seç" MinWidth="0" Margin="0,0,8,0" />
+                                                    <TextBlock Text="{Binding Name.DisplayName}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                                    <TextBlock Text="{Binding Name.StatusText}" Margin="10,0,0,0" VerticalAlignment="Center"
+                                                               Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                                                    <TextBlock Text="{Binding Name.Warning}" Margin="16,0,0,0" VerticalAlignment="Center"
+                                                               Foreground="#F7630C" />
+                                                </StackPanel>
+                                            </Expander.Header>
+                                            <ItemsPresenter />
+                                        </Expander>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </GroupStyle.ContainerStyle>
+                </GroupStyle>
+            </DataGrid.GroupStyle>
+
+            <DataGrid.Columns>
+                <DataGridTemplateColumn Width="44" CanUserResize="False">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <CheckBox IsChecked="{Binding IsSelected, UpdateSourceTrigger=PropertyChanged}"
+                                      HorizontalAlignment="Center" MinWidth="0" />
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTextColumn Header="Ad / Kimlik" Binding="{Binding DisplayName, Mode=OneWay}" Width="380" MinWidth="160" IsReadOnly="True" />
+                <DataGridTextColumn Header="Mevcut" Binding="{Binding Current, Mode=OneWay}" Width="140" MinWidth="70" IsReadOnly="True" />
+                <DataGridTextColumn Header="Yeni" Binding="{Binding Available, Mode=OneWay}" Width="140" MinWidth="70" IsReadOnly="True" />
+                <DataGridTemplateColumn Header="Rozetler" Width="230" MinWidth="80" IsReadOnly="True">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <Border Style="{StaticResource Badge}" Background="#F7630C"
+                                        Visibility="{Binding IsMajor, Converter={StaticResource BoolToVis}}"
+                                        ToolTip="Ana sürüm değişiyor; uyumsuzluk olabilir.">
+                                    <TextBlock Text="MAJOR" Style="{StaticResource BadgeText}" />
+                                </Border>
+                                <Border Style="{StaticResource Badge}" Background="#0F6CBD"
+                                        Visibility="{Binding NeedsAdmin, Converter={StaticResource BoolToVis}}"
+                                        ToolTip="Yönetici yetkisi gerekir (UAC).">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="&#xE83D;" FontFamily="Segoe Fluent Icons, Segoe MDL2 Assets"
+                                                   Style="{StaticResource BadgeText}" Margin="0,0,4,0" VerticalAlignment="Center" />
+                                        <TextBlock Text="YÖNETİCİ" Style="{StaticResource BadgeText}" />
+                                    </StackPanel>
+                                </Border>
+                                <Border Style="{StaticResource Badge}" Background="#8764B8"
+                                        Visibility="{Binding IsDuplicate, Converter={StaticResource BoolToVis}}"
+                                        ToolTip="{Binding DuplicateInfo}">
+                                    <TextBlock Text="ÇİFT" Style="{StaticResource BadgeText}" />
+                                </Border>
+                                <Border Style="{StaticResource Badge}" Background="#C42B1C"
+                                        Visibility="{Binding IsBroken, Converter={StaticResource BoolToVis}}"
+                                        ToolTip="uv ortamı bulunamadı; yeniden kurulacak.">
+                                    <TextBlock Text="BOZUK" Style="{StaticResource BadgeText}" />
+                                </Border>
+                            </StackPanel>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+                <DataGridTextColumn Header="Durum" Binding="{Binding StatusText, Mode=OneWay}" Width="260" MinWidth="120" IsReadOnly="True" />
+            </DataGrid.Columns>
+        </DataGrid>
+
+        <GridSplitter Grid.Row="3" Height="6" HorizontalAlignment="Stretch" Background="Transparent" />
+
+        <!-- Alt panel -->
+        <TabControl Grid.Row="4" x:Name="LogTabs" SelectionChanged="LogTabs_SelectionChanged">
+            <TabItem Header="Çıktı">
+                <ListBox x:Name="LogList" ItemsSource="{Binding LogLines}" FontFamily="Cascadia Mono, Consolas"
+                         FontSize="12" VirtualizingPanel.IsVirtualizing="True" />
+            </TabItem>
+            <TabItem Header="Ham metin" x:Name="RawTab">
+                <DockPanel>
+                    <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,4,0,4">
+                        <Button Content="Tümünü kopyala" Click="CopyRaw_Click" Margin="0,0,8,0" />
+                        <Button Content="Temizle" Command="{Binding ClearLogCommand}" />
+                    </StackPanel>
+                    <TextBox x:Name="RawLog" IsReadOnly="True" IsReadOnlyCaretVisible="True" TextWrapping="NoWrap"
+                             AcceptsReturn="True" FontFamily="Cascadia Mono, Consolas" FontSize="12"
+                             HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"
+                             VerticalContentAlignment="Top" />
+                </DockPanel>
+            </TabItem>
+        </TabControl>
+
+        <!-- Durum çubuğu -->
+        <DockPanel Grid.Row="5" Margin="0,8,0,0">
+            <Button DockPanel.Dock="Right" Content="Microsoft.WinGet.Client kur" Command="{Binding InstallWingetModuleCommand}"
+                    Visibility="{Binding Sources[0].Warning, Converter={x:Static vm:NullToCollapsedConverter.Instance}}"
+                    ToolTip="Daha güvenilir winget sonuçları için PowerShell modülünü kurar (CurrentUser)." />
+            <TextBlock Text="{Binding StatusMessage}" VerticalAlignment="Center" />
+        </DockPanel>
+    </Grid>
+</Window>

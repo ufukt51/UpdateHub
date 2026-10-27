@@ -1,0 +1,23 @@
+﻿# --- genel ---
+node_modules/
+dist/
+build/
+.venv/
+__pycache__/
+.env
+*.log
+
+# --- .NET ---
+bin/
+obj/
+.vs/
+
+# --- graphify ---
+graphify-out/cost.json
+
+plan.md
+
+# --- test / yayın ---
+TestResults/
+publish/
+*.user

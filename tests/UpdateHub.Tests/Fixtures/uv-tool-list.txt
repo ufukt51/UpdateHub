@@ -1,0 +1,5 @@
+graphifyy v0.9.96
+- graphify
+- graphify-mcp
+specify-cli v1.2.3
+- specify

@@ -1,0 +1,6 @@
+warning: Tool `specify-cli` environment not found (run `uv tool install specify-cli --reinstall` to reinstall)
+graphifyy v0.9.96 [latest: 0.9.98]
+- graphify
+- graphify-mcp
+ruff v0.14.2 [latest: 1.0.0]
+- ruff

@@ -17,14 +17,17 @@ public sealed partial class MainViewModel : ObservableObject
     private const int MaxLogLines = 5000;
 
     private readonly ProcessRunner _runner;
+    private readonly ConfigStore _config;
     private readonly ElevationBroker _broker = new();
     private readonly Dispatcher _dispatcher = Dispatcher.CurrentDispatcher;
     private readonly Dictionary<SourceKind, IReadOnlyList<string>> _installed = [];
     private CancellationTokenSource? _cts;
 
-    public MainViewModel(IEnumerable<IPackageSource> sources, ProcessRunner runner)
+    public MainViewModel(IEnumerable<IPackageSource> sources, ProcessRunner runner, ConfigStore? config = null)
     {
         _runner = runner;
+        _config = config ?? new ConfigStore(ConfigStore.DefaultPath);
+        _config.Load();
 
         var cvs = new CollectionViewSource { Source = Packages };
         cvs.GroupDescriptions.Add(new PropertyGroupDescription(nameof(PackageUpdate.Group)));
@@ -73,6 +76,7 @@ public sealed partial class MainViewModel : ObservableObject
     public partial ISourceTab? SelectedTab { get; set; }
 
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(UpdateSelectedCommand))]
     public partial int SelectedCount { get; set; }
 
     [ObservableProperty]
@@ -140,14 +144,23 @@ public sealed partial class MainViewModel : ObservableObject
 
             // Tarama arka planda; devamı arayüz iş parçacığında.
             var result = await Task.Run(() => s.Source.GetOutdatedAsync(ct), ct);
+            var hidden = 0;
             foreach (var u in result.Updates)
             {
+                // Sürümü bilinmeyen ve önerilen sürümü zaten UpdateHub'ın kurduğu paketler gösterilmez.
+                if (_config.IsAlreadyInstalled(u))
+                {
+                    hidden++;
+                    continue;
+                }
                 u.Group = s;
                 Packages.Add(u);
             }
+            if (hidden > 0)
+                Log($"[{s.DisplayName}] {hidden} paket gizlendi: kurulu sürümü bilinmiyor, önerilen sürüm daha önce UpdateHub ile kuruldu.");
             _installed[s.Kind] = result.InstalledIds;
             s.Warning = result.Warning;
-            s.UpdateCount = result.Updates.Count;
+            s.UpdateCount = result.Updates.Count - hidden;
             s.State = SourceScanState.Done;
 
             DuplicateDetector.Assign(Packages, _installed.SelectMany(kv => kv.Value.Select(id => (kv.Key, id))));
@@ -166,7 +179,7 @@ public sealed partial class MainViewModel : ObservableObject
 
     // ---------- Güncelleme ----------
 
-    [RelayCommand(CanExecute = nameof(IsIdle))]
+    [RelayCommand(CanExecute = nameof(CanUpdate))]
     private async Task UpdateSelectedAsync()
     {
         // Sekme ve arama sadece görünümü süzer; başka sekmede seçilenler de güncellenir (sayı düğmede görünür).
@@ -320,7 +333,7 @@ public sealed partial class MainViewModel : ObservableObject
     }
 
     /// <returns>Başarılıysa paket sayısı, değilse 0.</returns>
-    private static int ApplyExitCode(List<PackageUpdate> pkgs, int exitCode)
+    private int ApplyExitCode(List<PackageUpdate> pkgs, int exitCode)
     {
         if (!ExitCodes.IsSuccess(exitCode))
         {
@@ -332,13 +345,31 @@ public sealed partial class MainViewModel : ObservableObject
             ExitCodes.IsRebootRequired(exitCode) ? "Güncellendi (yeniden başlatma gerekli)" : "Güncellendi");
         foreach (var p in pkgs)
             p.IsSelected = false;
+        RememberInstalled(pkgs);
         return pkgs.Count;
+    }
+
+    /// <summary>Sürümü bilinmeyen paketlerin kurulan sürümünü saklar; sonraki taramada tekrar listelenmezler.</summary>
+    private void RememberInstalled(List<PackageUpdate> pkgs)
+    {
+        if (pkgs.Count(_config.RememberInstalled) == 0)
+            return;
+        try
+        {
+            _config.Save();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Log($"Ayar dosyası yazılamadı: {ex.Message}");
+        }
     }
 
     [RelayCommand(CanExecute = nameof(IsBusy))]
     private void Cancel() => _cts?.Cancel();
 
     private bool IsIdle() => !IsBusy;
+
+    private bool CanUpdate() => !IsBusy && SelectedCount > 0;
 
     // ---------- Diğer ----------
 

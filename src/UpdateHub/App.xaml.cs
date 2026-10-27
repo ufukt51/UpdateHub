@@ -33,6 +33,12 @@ public partial class App : Application
         MainWindow = new MainWindow { DataContext = vm };
         MainWindow.Show();
         vm.ScanCommand.Execute(null);
+
+#if DEBUG
+        var snapshot = Array.FindIndex(e.Args, a => a.Equals(DebugSnapshot.Argument, StringComparison.OrdinalIgnoreCase));
+        if (snapshot >= 0 && snapshot + 1 < e.Args.Length)
+            DebugSnapshot.Run((MainWindow)MainWindow, vm, e.Args[snapshot + 1]);
+#endif
     }
 
     /// <summary>Pencere açmadan iş dosyasını çalıştırır ve çıkar.</summary>

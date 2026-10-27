@@ -1,4 +1,5 @@
 using CommunityToolkit.Mvvm.ComponentModel;
+using UpdateHub.Services;
 
 namespace UpdateHub.Models;
 
@@ -37,4 +38,10 @@ public sealed partial class PackageUpdate : ObservableObject
     public bool IsDuplicate => DuplicateGroup is not null;
 
     public string DisplayName => string.Equals(Name, Id, StringComparison.OrdinalIgnoreCase) ? Id : $"{Name} ({Id})";
+
+    /// <summary>Kurulu sürüm okunamadı (ör. winget "Unknown"); paket her taramada güncellenecek görünür.</summary>
+    public bool IsVersionUnknown => VersionInfo.TryParse(Current) is null;
+
+    /// <summary>Ad kimlikten farklıysa addan sonra soluk gösterilen kimlik.</summary>
+    public string? SubtitleId => string.Equals(Name, Id, StringComparison.OrdinalIgnoreCase) ? null : Id;
 }

@@ -39,9 +39,11 @@ public sealed class WingetSource(ProcessRunner runner) : PackageSourceBase(runne
         return FromParsed(parsed, ModuleMissingWarning);
     }
 
+    // Kurulu sürümü "Unknown" olan paketler (ör. wkhtmltox) --include-unknown olmadan güncellenmez
+    // (çıkış -1978335189). Bayrak sürümü bilinen paketlerde etkisizdir; yükseltilmiş taraf sürümü bilmediği için hep eklenir.
     protected override string[] UpdateArguments(PackageUpdate p) =>
     [
-        "upgrade", "--id", p.Id, "--exact", "--silent",
+        "upgrade", "--id", p.Id, "--exact", "--silent", "--include-unknown",
         "--accept-source-agreements", "--accept-package-agreements", "--disable-interactivity",
     ];
 

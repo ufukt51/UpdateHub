@@ -48,7 +48,7 @@ public sealed partial class MainViewModel : ObservableObject
         {
             s.AllSelectedChanged += (_, value) =>
             {
-                foreach (var p in Packages.Where(p => p.Group == s && IsVisible(p)))
+                foreach (var p in Packages.Where(p => p.Group == s && !p.IsExcluded && IsVisible(p)))
                     p.IsSelected = value;
             };
         }
@@ -61,13 +61,20 @@ public sealed partial class MainViewModel : ObservableObject
             {
                 p.PropertyChanged += (_, pe) =>
                 {
-                    if (pe.PropertyName == nameof(PackageUpdate.IsSelected))
-                        SelectedCount = Packages.Count(x => x.IsSelected);
+                    if (pe.PropertyName is nameof(PackageUpdate.IsSelected) or nameof(PackageUpdate.ExclusionReason))
+                        UpdateCounts();
                 };
             }
-            AllTab.Count = Packages.Count;
-            SelectedCount = Packages.Count(x => x.IsSelected);
+            UpdateCounts();
         };
+    }
+
+    /// <summary>Hariç tutulanlar güncelleme sayılarına girmez.</summary>
+    private void UpdateCounts()
+    {
+        AllTab.Count = Packages.Count(x => !x.IsExcluded);
+        ExcludedCount = Packages.Count(x => x.IsExcluded);
+        SelectedCount = Packages.Count(x => x.IsSelected && !x.IsExcluded);
     }
 
     public ObservableCollection<SourceState> Sources { get; }
@@ -99,12 +106,23 @@ public sealed partial class MainViewModel : ObservableObject
     [ObservableProperty]
     public partial string StatusMessage { get; set; } = "Hazır.";
 
+    /// <summary>Hariç tutma kuralıyla gizlenen paketler de tabloda gösterilsin mi?</summary>
+    [ObservableProperty]
+    public partial bool ShowExcluded { get; set; }
+
+    [ObservableProperty]
+    public partial int ExcludedCount { get; set; }
+
     partial void OnSearchTextChanged(string value) => PackagesView.Refresh();
 
     partial void OnSelectedTabChanged(ISourceTab? value) => PackagesView.Refresh();
 
+    partial void OnShowExcludedChanged(bool value) => PackagesView.Refresh();
+
     private bool IsVisible(PackageUpdate p)
     {
+        if (p.IsExcluded && !ShowExcluded)
+            return false;
         if (SelectedTab is SourceState s && p.Group != s)
             return false;
         var q = SearchText.Trim();
@@ -128,7 +146,9 @@ public sealed partial class MainViewModel : ObservableObject
         {
             await Task.WhenAll(Sources.Select(s => ScanSourceAsync(s, _cts.Token)));
             var errors = Sources.Count(s => s.State == SourceScanState.Error);
-            StatusMessage = $"{Packages.Count} güncelleme bulundu." + (errors > 0 ? $" {errors} kaynakta hata." : "");
+            StatusMessage = $"{AllTab.Count} güncelleme bulundu."
+                + (ExcludedCount > 0 ? $" {ExcludedCount} hariç tutuldu." : "")
+                + (errors > 0 ? $" {errors} kaynakta hata." : "");
         }
         finally
         {
@@ -165,18 +185,17 @@ public sealed partial class MainViewModel : ObservableObject
                     continue;
                 }
                 // config.json'daki hariç tutma kuralları (ignore, pin, skipVersion).
-                if (_config.ExclusionReason(u) is { } reason)
-                {
+                // Paket listede kalır ama "Hariç tutulanları göster" açılana kadar görünmez.
+                u.ExclusionReason = _config.ExclusionReason(u);
+                if (u.ExclusionReason is { } reason)
                     excluded.Add($"{u.Id} {u.Available} ({reason})");
-                    continue;
-                }
                 u.Group = s;
                 Packages.Add(u);
             }
             if (hidden > 0)
                 Log($"[{s.DisplayName}] {hidden} paket gizlendi: kurulu sürümü bilinmiyor, önerilen sürüm daha önce UpdateHub ile kuruldu.");
             if (excluded.Count > 0)
-                Log($"[{s.DisplayName}] {excluded.Count} paket hariç tutma kuralıyla gizlendi: {string.Join(", ", excluded)}.");
+                Log($"[{s.DisplayName}] {excluded.Count} paket hariç tutma kuralıyla gizlendi: {string.Join(", ", excluded)}. Görmek için \"Hariç tutulanları göster\".");
             _installed[s.Kind] = result.InstalledIds;
             s.Warning = result.Warning;
             s.UpdateCount = result.Updates.Count - hidden - excluded.Count;
@@ -205,7 +224,7 @@ public sealed partial class MainViewModel : ObservableObject
     private async Task UpdateSelectedAsync()
     {
         // Sekme ve arama sadece görünümü süzer; başka sekmede seçilenler de güncellenir (sayı düğmede görünür).
-        var selected = Packages.Where(p => p.IsSelected && p.Group is not null).ToList();
+        var selected = Packages.Where(p => p.IsSelected && !p.IsExcluded && p.Group is not null).ToList();
         if (selected.Count == 0)
         {
             StatusMessage = "Güncellenecek paket seçilmedi.";
@@ -464,7 +483,7 @@ public sealed partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void Exclude(PackageUpdate? package)
     {
-        if (package is null)
+        if (package is null || package.IsExcluded)
             return;
         _config.AddIgnore(package);
         HideExcluded(package, $"{package.Id} hariç tutuldu; sonraki taramalarda gösterilmeyecek.");
@@ -474,10 +493,26 @@ public sealed partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void SkipVersion(PackageUpdate? package)
     {
-        if (package is null)
+        if (package is null || package.IsExcluded)
             return;
         _config.AddSkipVersion(package);
         HideExcluded(package, $"{package.Id} {package.Available} sürümü atlandı; daha yeni sürüm çıkınca yine gösterilecek.");
+    }
+
+    /// <summary>Paketin tüm hariç tutma kurallarını siler; paket yeniden güncellenebilir olur.</summary>
+    [RelayCommand]
+    private void RemoveExclusion(PackageUpdate? package)
+    {
+        if (package is null || !package.IsExcluded)
+            return;
+        _config.RemoveExclusions(package.Source, package.Id);
+        if (!SaveConfig())
+            return;
+        package.ExclusionReason = null;
+        if (package.Group is { } s)
+            s.UpdateCount++;
+        PackagesView.Refresh();
+        Log($"[{package.Group?.DisplayName ?? package.Source.ToString()}] {package.Id} için hariç tutma kuralı kaldırıldı.");
     }
 
     private void HideExcluded(PackageUpdate package, string message)
@@ -485,9 +520,10 @@ public sealed partial class MainViewModel : ObservableObject
         if (!SaveConfig())
             return;
         package.IsSelected = false;
-        Packages.Remove(package);
+        package.ExclusionReason = _config.ExclusionReason(package);
         if (package.Group is { } s)
             s.UpdateCount = Math.Max(0, s.UpdateCount - 1);
+        PackagesView.Refresh();
         Log($"[{package.Group?.DisplayName ?? package.Source.ToString()}] {message}");
     }
 

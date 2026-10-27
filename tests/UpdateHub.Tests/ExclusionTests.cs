@@ -201,4 +201,21 @@ public sealed class ExclusionTests : IDisposable
         store.LoadError.ShouldBeNull();
         store.Config.Exclusions.ShouldBeEmpty();
     }
+
+    [Fact]
+    public void ExcludedPackage_CannotBeSelected()
+    {
+        var p = Pkg(SourceKind.Choco, "python", "3.15.2");
+        p.IsSelected = true;
+
+        p.ExclusionReason = "hariç tutuldu";
+        p.IsSelected.ShouldBeFalse();
+
+        p.IsSelected = true;
+        p.IsSelected.ShouldBeFalse();
+
+        p.ExclusionReason = null;
+        p.IsSelected = true;
+        p.IsSelected.ShouldBeTrue();
+    }
 }

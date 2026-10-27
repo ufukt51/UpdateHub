@@ -26,7 +26,7 @@ internal static class DebugSnapshot
             vm.LogLines.Add($"> örnek günlük satırı {i}");
 
         window.PackagesGrid.SelectedIndex = 2;
-        var first = vm.Packages.FirstOrDefault();
+        var first = vm.Packages.FirstOrDefault(p => !p.IsExcluded);
         if (first is not null)
             first.IsSelected = true;
         await Save(window, basePath + "-1.png");
@@ -37,7 +37,7 @@ internal static class DebugSnapshot
             await Save(check, basePath + "-check.png", 12);
 
         // Onay penceresi: her kaynaktan ilk paket seçili.
-        var picked = vm.Packages.GroupBy(p => p.Source).Select(g => g.First()).ToList();
+        var picked = vm.Packages.Where(p => !p.IsExcluded).GroupBy(p => p.Source).Select(g => g.First()).ToList();
         var confirm = new ConfirmUpdateWindow(ConfirmSummary.Create(picked,
             picked.GroupBy(p => p.Group!).SelectMany(g => g.Key.Source.CreateUpdateJob([.. g])), false)) { Owner = window };
         confirm.Show();
@@ -53,6 +53,11 @@ internal static class DebugSnapshot
         vm.History.Insert(0, new Services.HistoryEntry(DateTimeOffset.Now, Models.SourceKind.Winget, "RARLab.WinRAR", "7.00.0", "7.23.0", 1, 3100, false));
         window.HistoryTab.IsSelected = true;
         await Save(window, basePath + "-3.png");
+
+        // Hariç tutulanlar açık, Tümü sekmesi.
+        vm.ShowExcluded = true;
+        vm.SelectedTab = vm.AllTab;
+        await Save(window, basePath + "-4.png");
 
         Application.Current.Shutdown();
     }

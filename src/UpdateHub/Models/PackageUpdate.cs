@@ -35,7 +35,27 @@ public sealed partial class PackageUpdate : ObservableObject
     [ObservableProperty]
     public partial bool IsSelected { get; set; }
 
+    /// <summary>Paketi gizleyen hariç tutma kuralının açıklaması; kural yoksa null.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsExcluded))]
+    public partial string? ExclusionReason { get; set; }
+
+    partial void OnExclusionReasonChanged(string? value)
+    {
+        if (value is not null)
+            IsSelected = false;
+    }
+
+    partial void OnIsSelectedChanged(bool value)
+    {
+        if (value && IsExcluded)
+            IsSelected = false;
+    }
+
     public bool IsDuplicate => DuplicateGroup is not null;
+
+    /// <summary>Hariç tutulan paket yalnızca "Hariç tutulanları göster" açıkken görünür ve seçilemez.</summary>
+    public bool IsExcluded => ExclusionReason is not null;
 
     public string DisplayName => string.Equals(Name, Id, StringComparison.OrdinalIgnoreCase) ? Id : $"{Name} ({Id})";
 

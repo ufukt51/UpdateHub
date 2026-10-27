@@ -109,22 +109,30 @@
 
     <!-- Onay kutusu: 18 px kare, dikeyde ortalı. -->
     <Style TargetType="CheckBox">
+        <Setter Property="Foreground" Value="{DynamicResource Text}" />
         <Setter Property="Cursor" Value="Hand" />
         <Setter Property="FocusVisualStyle" Value="{x:Null}" />
         <Setter Property="VerticalAlignment" Value="Center" />
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="CheckBox">
-                    <!-- Dolgu ile çerçeve ayrı katman: aynı Border'da dolgu çerçevenin içine çizilir ve kenarda açık bir halka kalır. -->
-                    <Grid Width="18" Height="18" Background="Transparent" UseLayoutRounding="True">
-                        <Border x:Name="Fill" CornerRadius="4" Background="Transparent" />
-                        <Border x:Name="Outline" CornerRadius="4" BorderBrush="{DynamicResource Dim}" BorderThickness="1.5" />
-                        <!-- Koordinatlar 18 px kutuya göre; işaret tam ortada. -->
-                        <Path x:Name="Mark" Data="M 4.75,9.25 L 7.75,12.25 L 13.25,6" Stroke="{DynamicResource OnAccent}" StrokeThickness="2"
-                              StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" Visibility="Collapsed" />
-                        <Rectangle x:Name="Dash" Width="8" Height="2" RadiusX="1" RadiusY="1" Fill="{DynamicResource OnAccent}" Visibility="Collapsed" />
-                    </Grid>
+                    <StackPanel Orientation="Horizontal" Background="Transparent">
+                        <!-- Dolgu ile çerçeve ayrı katman: aynı Border'da dolgu çerçevenin içine çizilir ve kenarda açık bir halka kalır. -->
+                        <Grid Width="18" Height="18" UseLayoutRounding="True">
+                            <Border x:Name="Fill" CornerRadius="4" Background="Transparent" />
+                            <Border x:Name="Outline" CornerRadius="4" BorderBrush="{DynamicResource Dim}" BorderThickness="1.5" />
+                            <!-- Koordinatlar 18 px kutuya göre; işaret tam ortada. -->
+                            <Path x:Name="Mark" Data="M 4.75,9.25 L 7.75,12.25 L 13.25,6" Stroke="{DynamicResource OnAccent}" StrokeThickness="2"
+                                  StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" Visibility="Collapsed" />
+                            <Rectangle x:Name="Dash" Width="8" Height="2" RadiusX="1" RadiusY="1" Fill="{DynamicResource OnAccent}" Visibility="Collapsed" />
+                        </Grid>
+                        <!-- Etiket yalnızca içerik verilince yer kaplar; tablodaki kutular ortalı kalır. -->
+                        <ContentPresenter x:Name="Label" Margin="8,0,0,0" VerticalAlignment="Center" RecognizesAccessKey="True" />
+                    </StackPanel>
                     <ControlTemplate.Triggers>
+                        <Trigger Property="HasContent" Value="False">
+                            <Setter TargetName="Label" Property="Visibility" Value="Collapsed" />
+                        </Trigger>
                         <Trigger Property="IsMouseOver" Value="True">
                             <Setter TargetName="Outline" Property="BorderBrush" Value="{DynamicResource Muted}" />
                         </Trigger>

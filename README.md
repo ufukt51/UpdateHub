@@ -95,6 +95,8 @@ Ayarlar `%APPDATA%\UpdateHub\config.json` dosyasındadır. Satıra sağ tıklay�
 
 `source` değerleri: `Winget`, `Choco`, `Npm`, `Uv`, `Pip`, `PythonRuntime`, `DotnetTool`.
 
+Araç çubuğundaki **Hariç tutulanları göster** kutusu, gizlenen paketleri soluk ve `HARİÇ` rozetiyle gösterir (rozetin ipucunda kural yazar). Bu paketler seçilemez. Satıra sağ tıklayıp **Kuralı kaldır** ile paketin kuralları silinir ve paket yeniden güncellenebilir olur.
+
 ## Yönetici yetkisi
 
 Uygulama normal kullanıcı olarak çalışır. Chocolatey gibi yönetici gerektiren paketler seçildiğinde:

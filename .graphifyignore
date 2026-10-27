@@ -9,3 +9,18 @@ obj/
 .vs/
 *.min.js
 *.generated.*
+bin/
+*.Designer.cs
+packages/*/LICENSE.md
+packages/*/README.md
+StaticFiles/*
+# Görseller
+*.png
+*.jpg
+*.jpeg
+*.bmp
+*.gif
+*.ico
+*.svg
+# Dokümanlar / kaynak dosyaları
+*.resx

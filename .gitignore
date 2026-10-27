@@ -13,7 +13,7 @@ obj/
 .vs/
 
 # --- graphify ---
-graphify-out/cost.json
+graphify-out/
 
 plan.md
 
@@ -21,3 +21,10 @@ plan.md
 TestResults/
 publish/
 *.user
+
+
+.dockerignore
+.claudeignore
+.graphifyignore
+
+handoff.md

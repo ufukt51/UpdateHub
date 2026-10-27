@@ -291,6 +291,13 @@
 
                     <DataGrid.ContextMenu>
                         <ContextMenu>
+                            <MenuItem Header="Hariç tut" Command="{Binding ExcludeCommand}"
+                                      ToolTip="Paket bir daha listelenmez (config.json)."
+                                      CommandParameter="{Binding PlacementTarget.SelectedItem, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                            <MenuItem Header="Bu sürümü atla" Command="{Binding SkipVersionCommand}"
+                                      ToolTip="Yalnızca bu sürüm gizlenir; daha yeni sürüm çıkınca yine listelenir."
+                                      CommandParameter="{Binding PlacementTarget.SelectedItem, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                            <Separator />
                             <MenuItem Header="Komutu kopyala" Command="{Binding CopyCommand}"
                                       CommandParameter="{Binding PlacementTarget.SelectedItem, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
                         </ContextMenu>

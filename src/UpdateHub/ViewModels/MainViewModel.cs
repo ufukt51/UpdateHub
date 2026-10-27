@@ -9,6 +9,7 @@ using UpdateHub.Models;
 using UpdateHub.Services;
 using UpdateHub.Services.Elevation;
 using UpdateHub.Sources;
+using UpdateHub.Views;
 
 namespace UpdateHub.ViewModels;
 
@@ -28,6 +29,8 @@ public sealed partial class MainViewModel : ObservableObject
         _runner = runner;
         _config = config ?? new ConfigStore(ConfigStore.DefaultPath);
         _config.Load();
+        if (_config.LoadError is not null)
+            Log($"Ayar dosyası okunamadı, varsayılanlar kullanılıyor (ilk kayıtta .bak yedeği alınır): {_config.LoadError}");
 
         var cvs = new CollectionViewSource { Source = Packages };
         cvs.GroupDescriptions.Add(new PropertyGroupDescription(nameof(PackageUpdate.Group)));
@@ -145,6 +148,7 @@ public sealed partial class MainViewModel : ObservableObject
             // Tarama arka planda; devamı arayüz iş parçacığında.
             var result = await Task.Run(() => s.Source.GetOutdatedAsync(ct), ct);
             var hidden = 0;
+            var excluded = new List<string>();
             foreach (var u in result.Updates)
             {
                 // Sürümü bilinmeyen ve önerilen sürümü zaten UpdateHub'ın kurduğu paketler gösterilmez.
@@ -153,14 +157,22 @@ public sealed partial class MainViewModel : ObservableObject
                     hidden++;
                     continue;
                 }
+                // config.json'daki hariç tutma kuralları (ignore, pin, skipVersion).
+                if (_config.ExclusionReason(u) is { } reason)
+                {
+                    excluded.Add($"{u.Id} {u.Available} ({reason})");
+                    continue;
+                }
                 u.Group = s;
                 Packages.Add(u);
             }
             if (hidden > 0)
                 Log($"[{s.DisplayName}] {hidden} paket gizlendi: kurulu sürümü bilinmiyor, önerilen sürüm daha önce UpdateHub ile kuruldu.");
+            if (excluded.Count > 0)
+                Log($"[{s.DisplayName}] {excluded.Count} paket hariç tutma kuralıyla gizlendi: {string.Join(", ", excluded)}.");
             _installed[s.Kind] = result.InstalledIds;
             s.Warning = result.Warning;
-            s.UpdateCount = result.Updates.Count - hidden;
+            s.UpdateCount = result.Updates.Count - hidden - excluded.Count;
             s.State = SourceScanState.Done;
 
             DuplicateDetector.Assign(Packages, _installed.SelectMany(kv => kv.Value.Select(id => (kv.Key, id))));
@@ -179,6 +191,9 @@ public sealed partial class MainViewModel : ObservableObject
 
     // ---------- Güncelleme ----------
 
+    /// <summary>Güncellemeden önce onay ister. Testler pencere açmamak için değiştirir.</summary>
+    public Func<ConfirmSummary, bool> ConfirmUpdate { get; set; } = ConfirmUpdateWindow.Ask;
+
     [RelayCommand(CanExecute = nameof(CanUpdate))]
     private async Task UpdateSelectedAsync()
     {
@@ -194,6 +209,13 @@ public sealed partial class MainViewModel : ObservableObject
             .GroupBy(p => p.Group!)
             .SelectMany(g => g.Key.Source.CreateUpdateJob([.. g]).Select(cmd => (Command: cmd, Packages: g.Where(p => cmd.PackageIds.Contains(p.Id)).ToList())))
             .ToList();
+
+        var summary = ConfirmSummary.Create(selected, jobs.Select(j => j.Command), Environment.IsPrivilegedProcess);
+        if (!ConfirmUpdate(summary))
+        {
+            StatusMessage = "Güncelleme iptal edildi.";
+            return;
+        }
 
         foreach (var p in selected)
             SetStatus([p], UpdateStatus.Queued, "Sırada");
@@ -354,13 +376,21 @@ public sealed partial class MainViewModel : ObservableObject
     {
         if (pkgs.Count(_config.RememberInstalled) == 0)
             return;
+        SaveConfig();
+    }
+
+    /// <returns>Yazıldıysa true.</returns>
+    private bool SaveConfig()
+    {
         try
         {
             _config.Save();
+            return true;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             Log($"Ayar dosyası yazılamadı: {ex.Message}");
+            return false;
         }
     }
 
@@ -381,6 +411,37 @@ public sealed partial class MainViewModel : ObservableObject
         var cmd = package.Group.Source.CreateUpdateJob([package]).FirstOrDefault();
         if (cmd is not null)
             Clipboard.SetText(cmd.DisplayText);
+    }
+
+    /// <summary>Paketi kalıcı olarak gizler (config.json, "ignore").</summary>
+    [RelayCommand]
+    private void Exclude(PackageUpdate? package)
+    {
+        if (package is null)
+            return;
+        _config.AddIgnore(package);
+        HideExcluded(package, $"{package.Id} hariç tutuldu; sonraki taramalarda gösterilmeyecek.");
+    }
+
+    /// <summary>Yalnızca önerilen sürümü gizler; daha yeni sürüm çıkınca paket yine listelenir.</summary>
+    [RelayCommand]
+    private void SkipVersion(PackageUpdate? package)
+    {
+        if (package is null)
+            return;
+        _config.AddSkipVersion(package);
+        HideExcluded(package, $"{package.Id} {package.Available} sürümü atlandı; daha yeni sürüm çıkınca yine gösterilecek.");
+    }
+
+    private void HideExcluded(PackageUpdate package, string message)
+    {
+        if (!SaveConfig())
+            return;
+        package.IsSelected = false;
+        Packages.Remove(package);
+        if (package.Group is { } s)
+            s.UpdateCount = Math.Max(0, s.UpdateCount - 1);
+        Log($"[{package.Group?.DisplayName ?? package.Source.ToString()}] {message}");
     }
 
     [RelayCommand]

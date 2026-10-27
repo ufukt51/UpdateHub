@@ -99,4 +99,18 @@ public sealed class HistoryLogTests : IDisposable
     [Fact]
     public void VersionText_ShowsMissingVersionAsQuestionMark() =>
         (Entry("x") with { From = "" }).VersionText.ShouldBe("? → 12.2.1");
+
+    [Fact]
+    public void SourceName_IsShownButNotWritten()
+    {
+        var log = new HistoryLog(HistoryPath);
+        var e = Entry("npm") with { SourceName = "npm (global)" };
+        e.SourceText.ShouldBe("npm (global)");
+        Entry("npm").SourceText.ShouldBe("Npm");
+
+        log.Append(e);
+
+        File.ReadAllText(HistoryPath).ShouldNotContain("sourceName");
+        log.ReadAll().Single().SourceName.ShouldBeNull();
+    }
 }

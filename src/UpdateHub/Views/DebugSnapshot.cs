@@ -49,8 +49,8 @@ internal static class DebugSnapshot
         await Save(window, basePath + "-2.png");
 
         // Geçmiş sekmesi: dosyaya yazmadan örnek iki satır.
-        vm.History.Insert(0, new Services.HistoryEntry(DateTimeOffset.Now, Models.SourceKind.Choco, "python", "3.15.0", "3.15.2", 0, 41200, true));
-        vm.History.Insert(0, new Services.HistoryEntry(DateTimeOffset.Now, Models.SourceKind.Winget, "RARLab.WinRAR", "7.00.0", "7.23.0", 1, 3100, false));
+        vm.History.Insert(0, vm.WithSourceName(new Services.HistoryEntry(DateTimeOffset.Now, Models.SourceKind.Choco, "python", "3.15.0", "3.15.2", 0, 41200, true)));
+        vm.History.Insert(0, vm.WithSourceName(new Services.HistoryEntry(DateTimeOffset.Now, Models.SourceKind.Winget, "RARLab.WinRAR", "7.00.0", "7.23.0", 1, 3100, false)));
         window.HistoryTab.IsSelected = true;
         await Save(window, basePath + "-3.png");
 

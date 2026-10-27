@@ -23,6 +23,13 @@ public sealed record HistoryEntry(
 
     // ---------- Geçmiş sekmesi için biçimli alanlar ----------
 
+    /// <summary>Kaynağın görünen adı (ör. "Chocolatey"). Dosyaya yazılmaz; okuyan atar.</summary>
+    [JsonIgnore]
+    public string? SourceName { get; init; }
+
+    [JsonIgnore]
+    public string SourceText => SourceName ?? Source.ToString();
+
     [JsonIgnore]
     public string TimeText => Ts.ToLocalTime().ToString("dd.MM.yyyy HH:mm");
 
@@ -43,7 +50,7 @@ public sealed record HistoryEntry(
 
     /// <summary>Panoya kopyalanan tek satırlık biçim (sekmeyle ayrılmış).</summary>
     public string ToLine() =>
-        string.Join('\t', TimeText, Source, Id, VersionText, ResultText, DurationText, Elevated ? "yönetici" : "");
+        string.Join('\t', TimeText, SourceText, Id, VersionText, ResultText, DurationText, Elevated ? "yönetici" : "");
 
     private static string Show(string? version) => string.IsNullOrWhiteSpace(version) ? "?" : version;
 }

@@ -34,7 +34,6 @@ public sealed partial class MainViewModel : ObservableObject
         if (_config.LoadError is not null)
             Log($"Ayar dosyası okunamadı, varsayılanlar kullanılıyor (ilk kayıtta .bak yedeği alınır): {_config.LoadError}");
         _history = history ?? new HistoryLog(HistoryLog.DefaultPath);
-        LoadHistory();
 
         var cvs = new CollectionViewSource { Source = Packages };
         cvs.GroupDescriptions.Add(new PropertyGroupDescription(nameof(PackageUpdate.Group)));
@@ -54,6 +53,8 @@ public sealed partial class MainViewModel : ObservableObject
         }
         Tabs = [AllTab, .. Sources];
         SelectedTab = AllTab;
+        // Kaynak adları için Sources hazır olmalı.
+        LoadHistory();
 
         Packages.CollectionChanged += (_, e) =>
         {
@@ -429,7 +430,7 @@ public sealed partial class MainViewModel : ObservableObject
         try
         {
             foreach (var e in _history.ReadRecent(MaxHistory))
-                History.Add(e);
+                History.Add(WithSourceName(e));
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -441,10 +442,14 @@ public sealed partial class MainViewModel : ObservableObject
     /// Çıkış kodu alınan her işi paket başına bir satır olarak geçmişe yazar.
     /// İptal edilen, UAC'si reddedilen veya hiç başlatılamayan işler yazılmaz.
     /// </summary>
+    /// <summary>Geçmiş satırına kaynağın görünen adını ekler (ör. Choco → Chocolatey).</summary>
+    internal HistoryEntry WithSourceName(HistoryEntry e) =>
+        Sources.FirstOrDefault(s => s.Kind == e.Source) is { } s ? e with { SourceName = s.DisplayName } : e;
+
     private void RecordHistory(List<PackageUpdate> pkgs, int? exitCode, long durationMs, bool elevated)
     {
         var now = DateTimeOffset.Now;
-        var entries = pkgs.Select(p => new HistoryEntry(now, p.Source, p.Id, p.Current, p.Available, exitCode, durationMs, elevated)).ToList();
+        var entries = pkgs.Select(p => WithSourceName(new HistoryEntry(now, p.Source, p.Id, p.Current, p.Available, exitCode, durationMs, elevated))).ToList();
         foreach (var e in entries)
             History.Insert(0, e);
         while (History.Count > MaxHistory)

@@ -25,6 +25,12 @@ public sealed partial class MainViewModel : ObservableObject
     private readonly ElevationBroker _broker = new();
     private readonly Dispatcher _dispatcher = Dispatcher.CurrentDispatcher;
     private readonly Dictionary<SourceKind, IReadOnlyList<string>> _installed = [];
+
+    /// <summary>Doğrulama bitene kadar dosyaya yazılmayan geçmiş kayıtları.</summary>
+    private readonly List<HistoryEntry> _pendingHistory = [];
+
+    /// <summary>Şu an güncellenen paketler; ilerleme çubuğu bunlardan hesaplanır.</summary>
+    private List<PackageUpdate> _batch = [];
     private CancellationTokenSource? _cts;
 
     public MainViewModel(IEnumerable<IPackageSource> sources, ProcessRunner runner, ConfigStore? config = null, HistoryLog? history = null,
@@ -69,6 +75,8 @@ public sealed partial class MainViewModel : ObservableObject
                 {
                     if (pe.PropertyName is nameof(PackageUpdate.IsSelected) or nameof(PackageUpdate.ExclusionReason))
                         UpdateCounts();
+                    else if (pe.PropertyName is nameof(PackageUpdate.Status) && _batch.Count > 0)
+                        ProgressValue = _batch.Count(x => x.Status is not (UpdateStatus.Queued or UpdateStatus.Running));
                 };
             }
             UpdateCounts();
@@ -119,6 +127,13 @@ public sealed partial class MainViewModel : ObservableObject
     [ObservableProperty]
     public partial int ExcludedCount { get; set; }
 
+    /// <summary>İlerleme çubuğu: taramada biten kaynak, güncellemede biten paket sayısı.</summary>
+    [ObservableProperty]
+    public partial int ProgressValue { get; set; }
+
+    [ObservableProperty]
+    public partial int ProgressMax { get; set; }
+
     partial void OnSearchTextChanged(string value) => PackagesView.Refresh();
 
     partial void OnSelectedTabChanged(ISourceTab? value) => PackagesView.Refresh();
@@ -147,6 +162,8 @@ public sealed partial class MainViewModel : ObservableObject
         StatusMessage = "Taranıyor…";
         Packages.Clear();
         _installed.Clear();
+        ProgressValue = 0;
+        ProgressMax = Sources.Count;
 
         try
         {
@@ -219,6 +236,10 @@ public sealed partial class MainViewModel : ObservableObject
             s.State = SourceScanState.Error;
             Log($"[{s.DisplayName}] tarama hatası: {ex.Message}");
         }
+        finally
+        {
+            ProgressValue++;
+        }
     }
 
     // ---------- Güncelleme ----------
@@ -251,6 +272,9 @@ public sealed partial class MainViewModel : ObservableObject
 
         foreach (var p in selected)
             SetStatus([p], UpdateStatus.Queued, "Sırada");
+        _batch = selected;
+        ProgressValue = 0;
+        ProgressMax = selected.Count;
 
         IsBusy = true;
         _cts = new CancellationTokenSource();
@@ -275,7 +299,7 @@ public sealed partial class MainViewModel : ObservableObject
                 }
 
                 SetStatus(pkgs, UpdateStatus.Running, "Güncelleniyor…");
-                StatusMessage = $"Güncelleniyor: {string.Join(", ", cmd.PackageIds)}";
+                StatusMessage = $"{ProgressValue + 1} / {ProgressMax} paket güncelleniyor: {string.Join(", ", cmd.PackageIds)}";
                 Log($"> {cmd.DisplayText}");
 
                 try
@@ -298,14 +322,64 @@ public sealed partial class MainViewModel : ObservableObject
                 }
             }
 
+            ok -= await VerifyAsync([.. selected.Where(p => p.Status == UpdateStatus.Succeeded)], ct);
+
             // Yönetici işleri dahil; komutlar normal kullanıcı olarak çalışır.
             await RunPostUpdateAsync(selected.Where(p => p.Status == UpdateStatus.Succeeded), ct);
         }
         finally
         {
+            FlushHistory();
+            _batch = [];
             IsBusy = false;
-            StatusMessage = $"{ok}/{selected.Count} paket güncellendi.";
+            var unchanged = selected.Count(p => p.Status == UpdateStatus.Unchanged);
+            StatusMessage = $"{ok}/{selected.Count} paket güncellendi."
+                + (unchanged > 0 ? $" {unchanged} pakette sürüm değişmedi." : "");
         }
+    }
+
+    /// <summary>
+    /// Başarılı görünen paketlerin kaynaklarını yeniden tarar; kurulu sürümü değişmeyenleri işaretler.
+    /// Bazı yükleyiciler hiçbir şey kurmadan 0 ile çıkar; çıkış koduna tek başına güvenilmez.
+    /// </summary>
+    /// <returns>Sürümü değişmeyen paket sayısı.</returns>
+    private async Task<int> VerifyAsync(List<PackageUpdate> succeeded, CancellationToken ct)
+    {
+        var count = 0;
+        foreach (var g in succeeded.Where(UpdateVerifier.CanVerify).GroupBy(p => p.Group!))
+        {
+            if (ct.IsCancellationRequested)
+                break;
+
+            var s = g.Key;
+            StatusMessage = $"Doğrulanıyor: {s.DisplayName}";
+            Log($"[{s.DisplayName}] kurulu sürümler yeniden okunuyor…");
+            IReadOnlyList<PackageUpdate> unchanged;
+            try
+            {
+                var result = await Task.Run(() => s.Source.GetOutdatedAsync(ct), ct);
+                unchanged = UpdateVerifier.Unchanged(g, result.Updates);
+            }
+            catch (OperationCanceledException)
+            {
+                break;
+            }
+            catch (Exception ex)
+            {
+                Log($"[{s.DisplayName}] doğrulama taraması başarısız: {ex.Message}");
+                continue;
+            }
+
+            foreach (var p in unchanged)
+            {
+                SetStatus([p], UpdateStatus.Unchanged, "Sürüm değişmedi");
+                MarkHistoryUnchanged(p);
+                Log($"[{s.DisplayName}] {p.Id}: komut başarılı döndü ama kurulu sürüm hâlâ {p.Current}. "
+                    + "Yükleyici güncellemeyi yapmamış; programın kendi güncelleyicisini deneyin.");
+            }
+            count += unchanged.Count;
+        }
+        return count;
     }
 
     /// <summary>Yönetici işlerini tek UAC onayıyla çalıştırır.</summary>
@@ -335,7 +409,7 @@ public sealed partial class MainViewModel : ObservableObject
             {
                 case ElevationEventType.Start when pkgs is not null:
                     SetStatus(pkgs, UpdateStatus.Running, "Güncelleniyor…");
-                    StatusMessage = $"Güncelleniyor (yönetici): {string.Join(", ", pkgs.Select(p => p.Id))}";
+                    StatusMessage = $"{ProgressValue + 1} / {ProgressMax} paket güncelleniyor (yönetici): {string.Join(", ", pkgs.Select(p => p.Id))}";
                     Log($"> {ev.Text}");
                     break;
                 case ElevationEventType.Line:
@@ -507,15 +581,36 @@ public sealed partial class MainViewModel : ObservableObject
             History.Insert(0, e);
         while (History.Count > MaxHistory)
             History.RemoveAt(History.Count - 1);
+        _pendingHistory.AddRange(entries);
+    }
 
+    /// <summary>Doğrulamada sürümü değişmeyen paketin bekleyen geçmiş kaydını işaretler.</summary>
+    private void MarkHistoryUnchanged(PackageUpdate p)
+    {
+        var i = _pendingHistory.FindLastIndex(e => e.Source == p.Source && e.Id == p.Id);
+        if (i < 0)
+            return;
+        var old = _pendingHistory[i];
+        var marked = old with { Unchanged = true };
+        _pendingHistory[i] = marked;
+        if (History.IndexOf(old) is var shown and >= 0)
+            History[shown] = marked;
+    }
+
+    /// <summary>Bekleyen geçmiş kayıtlarını dosyaya yazar.</summary>
+    private void FlushHistory()
+    {
+        if (_pendingHistory.Count == 0)
+            return;
         try
         {
-            _history.Append(entries);
+            _history.Append(_pendingHistory);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             Log($"Geçmiş dosyası yazılamadı: {ex.Message}");
         }
+        _pendingHistory.Clear();
     }
 
     [RelayCommand(CanExecute = nameof(IsBusy))]
@@ -661,7 +756,7 @@ public sealed partial class MainViewModel : ObservableObject
 
     private void Log(string line)
     {
-        LogLines.Add(line);
+        LogLines.Add($"[{DateTime.Now:HH:mm:ss}] {line}");
         if (LogLines.Count > MaxLogLines)
             LogLines.RemoveAt(0);
     }

@@ -252,6 +252,23 @@
         </Setter>
     </Style>
 
+    <!-- İlerleme: 4 px ince şerit, yuvarlak uçlu vurgu dolgusu. -->
+    <Style TargetType="ProgressBar">
+        <Setter Property="Height" Value="4" />
+        <Setter Property="Foreground" Value="{DynamicResource Accent}" />
+        <Setter Property="Background" Value="{DynamicResource Line}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ProgressBar">
+                    <Grid>
+                        <Border x:Name="PART_Track" CornerRadius="2" Background="{TemplateBinding Background}" />
+                        <Border x:Name="PART_Indicator" CornerRadius="2" Background="{TemplateBinding Foreground}" HorizontalAlignment="Left" />
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
     <!-- Rozetler: renkli metin, aynı tonda saydam zemin ve çerçeve. -->
     <Style x:Key="Badge" TargetType="Border">
         <Setter Property="CornerRadius" Value="4" />

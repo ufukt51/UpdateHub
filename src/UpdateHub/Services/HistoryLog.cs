@@ -8,6 +8,7 @@ namespace UpdateHub.Services;
 /// <summary><c>history.jsonl</c> dosyasındaki bir satır: biten tek bir paket güncellemesi.</summary>
 /// <param name="ExitCode">Sürecin çıkış kodu. Null: kod alınamadı.</param>
 /// <param name="Elevated">Komut yönetici yetkisiyle çalıştı.</param>
+/// <param name="Unchanged">Komut başarılı döndü ama yeniden taramada kurulu sürüm değişmemişti.</param>
 public sealed record HistoryEntry(
     DateTimeOffset Ts,
     SourceKind Source,
@@ -16,10 +17,11 @@ public sealed record HistoryEntry(
     string? To,
     int? ExitCode,
     long DurationMs,
-    bool Elevated)
+    bool Elevated,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] bool Unchanged = false)
 {
     [JsonIgnore]
-    public bool IsSuccess => ExitCode is int code && ExitCodes.IsSuccess(code);
+    public bool IsSuccess => ExitCode is int code && ExitCodes.IsSuccess(code) && !Unchanged;
 
     // ---------- Geçmiş sekmesi için biçimli alanlar ----------
 
@@ -42,6 +44,7 @@ public sealed record HistoryEntry(
     [JsonIgnore]
     public string ResultText => ExitCode switch
     {
+        _ when Unchanged => "Sürüm değişmedi",
         null => "Hata (kod yok)",
         int c when ExitCodes.IsRebootRequired(c) => "Başarılı (yeniden başlatma)",
         int c when ExitCodes.IsSuccess(c) => "Başarılı",

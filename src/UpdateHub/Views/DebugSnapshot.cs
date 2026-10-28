@@ -31,6 +31,27 @@ internal static class DebugSnapshot
             first.IsSelected = true;
         await Save(window, basePath + "-1.png");
         await Save(window.UpdateButton, basePath + "-button.png", 8);
+
+        // Sağ tık menüsü ayrı bir açılır pencerede; kendisi çizilir.
+        var menu = window.PackagesGrid.ContextMenu;
+        menu.PlacementTarget = window.PackagesGrid;
+        menu.IsOpen = true;
+        // Fluent açılış animasyonu bitsin.
+        await Task.Delay(800);
+        await Save(menu, basePath + "-menu.png", 2);
+        menu.IsOpen = false;
+
+        // Güncelleme sırasındaki görünüm: ilerleme çubuğu ve "sürüm değişmedi" durumu.
+        if (first is not null)
+        {
+            first.Status = Models.UpdateStatus.Unchanged;
+            first.StatusText = "Sürüm değişmedi";
+        }
+        vm.ProgressMax = 3;
+        vm.ProgressValue = 2;
+        vm.IsBusy = true;
+        await Save(window, basePath + "-busy.png");
+        vm.IsBusy = false;
         // İşaretli onay kutusu: ilk paket seçili olduğu için tablodaki ilk işaretli kutu.
         var check = Descendants(window.PackagesGrid).OfType<System.Windows.Controls.CheckBox>().FirstOrDefault(c => c.IsChecked == true);
         if (check is not null)

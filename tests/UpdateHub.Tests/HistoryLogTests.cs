@@ -97,6 +97,23 @@ public sealed class HistoryLogTests : IDisposable
     }
 
     [Fact]
+    public void Unchanged_IsNotSuccessAndRoundTrips()
+    {
+        var log = new HistoryLog(HistoryPath);
+        var e = Entry("Logitech.GHUB") with { Unchanged = true };
+
+        e.IsSuccess.ShouldBeFalse();
+        e.ResultText.ShouldBe("Sürüm değişmedi");
+
+        log.Append(e, Entry("npm"));
+
+        var lines = File.ReadAllLines(HistoryPath);
+        lines[0].ShouldContain("\"unchanged\":true");
+        lines[1].ShouldNotContain("unchanged");
+        log.ReadAll().ShouldBe([e, Entry("npm")]);
+    }
+
+    [Fact]
     public void VersionText_ShowsMissingVersionAsQuestionMark() =>
         (Entry("x") with { From = "" }).VersionText.ShouldBe("? → 12.2.1");
 

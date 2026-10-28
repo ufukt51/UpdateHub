@@ -6,6 +6,9 @@ public enum UpdateStatus
     Queued,
     Running,
     Succeeded,
+
+    /// <summary>Komut başarılı döndü ama yeniden taramada kurulu sürüm aynı.</summary>
+    Unchanged,
     Failed,
     Cancelled,
     CancelledByUac,

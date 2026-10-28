@@ -90,6 +90,14 @@
             </Setter>
         </Style>
 
+        <Style x:Key="MenuIcon" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="{StaticResource IconFont}" />
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="Foreground" Value="{DynamicResource Muted}" />
+            <Setter Property="HorizontalAlignment" Value="Center" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+
         <Style x:Key="CellText" TargetType="TextBlock">
             <Setter Property="TextTrimming" Value="CharacterEllipsis" />
             <Setter Property="VerticalAlignment" Value="Center" />
@@ -156,6 +164,11 @@
                 <DataTrigger Binding="{Binding IsSuccess}" Value="True">
                     <Setter TargetName="Dot" Property="Fill" Value="{DynamicResource Ok}" />
                     <Setter TargetName="Result" Property="Foreground" Value="{DynamicResource Ok}" />
+                </DataTrigger>
+                <DataTrigger Binding="{Binding Unchanged}" Value="True">
+                    <Setter TargetName="Dot" Property="Fill" Value="{DynamicResource Warn}" />
+                    <Setter TargetName="Result" Property="Foreground" Value="{DynamicResource Warn}" />
+                    <Setter TargetName="Result" Property="ToolTip" Value="Komut başarılı döndü ama yeniden taramada kurulu sürüm aynıydı." />
                 </DataTrigger>
                 <DataTrigger Binding="{Binding Elevated}" Value="True">
                     <Setter TargetName="Shield" Property="Visibility" Value="Visible" />
@@ -367,24 +380,50 @@
                             <MenuItem Header="Hariç tut" Command="{Binding ExcludeCommand}"
                                       ToolTip="Paket bir daha listelenmez (config.json)."
                                       Visibility="{Binding PlacementTarget.SelectedItem.ExclusionReason, RelativeSource={RelativeSource AncestorType=ContextMenu}, Converter={x:Static vm:NullToCollapsedConverter.Inverse}}"
-                                      CommandParameter="{Binding PlacementTarget.SelectedItem, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                      CommandParameter="{Binding PlacementTarget.SelectedItem, RelativeSource={RelativeSource AncestorType=ContextMenu}}">
+                                <MenuItem.Icon>
+                                    <TextBlock Text="&#xE8F8;" Style="{StaticResource MenuIcon}" />
+                                </MenuItem.Icon>
+                            </MenuItem>
                             <MenuItem Header="Bu sürümü atla" Command="{Binding SkipVersionCommand}"
                                       ToolTip="Yalnızca bu sürüm gizlenir; daha yeni sürüm çıkınca yine listelenir."
                                       Visibility="{Binding PlacementTarget.SelectedItem.ExclusionReason, RelativeSource={RelativeSource AncestorType=ContextMenu}, Converter={x:Static vm:NullToCollapsedConverter.Inverse}}"
-                                      CommandParameter="{Binding PlacementTarget.SelectedItem, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                      CommandParameter="{Binding PlacementTarget.SelectedItem, RelativeSource={RelativeSource AncestorType=ContextMenu}}">
+                                <MenuItem.Icon>
+                                    <TextBlock Text="&#xE893;" Style="{StaticResource MenuIcon}" />
+                                </MenuItem.Icon>
+                            </MenuItem>
                             <MenuItem Header="Sürüme sabitle…" Command="{Binding PinCommand}"
                                       ToolTip="Desene uymayan sürümler gizlenir (ör. 8.* yalnızca 8.x sürümlerini gösterir)."
                                       Visibility="{Binding PlacementTarget.SelectedItem.ExclusionReason, RelativeSource={RelativeSource AncestorType=ContextMenu}, Converter={x:Static vm:NullToCollapsedConverter.Inverse}}"
-                                      CommandParameter="{Binding PlacementTarget.SelectedItem, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                      CommandParameter="{Binding PlacementTarget.SelectedItem, RelativeSource={RelativeSource AncestorType=ContextMenu}}">
+                                <MenuItem.Icon>
+                                    <TextBlock Text="&#xE718;" Style="{StaticResource MenuIcon}" />
+                                </MenuItem.Icon>
+                            </MenuItem>
                             <MenuItem Header="Kuralı kaldır" Command="{Binding RemoveExclusionCommand}"
                                       ToolTip="Hariç tutma kuralı silinir; paket yeniden güncellenebilir."
                                       Visibility="{Binding PlacementTarget.SelectedItem.ExclusionReason, RelativeSource={RelativeSource AncestorType=ContextMenu}, Converter={x:Static vm:NullToCollapsedConverter.Instance}}"
-                                      CommandParameter="{Binding PlacementTarget.SelectedItem, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                      CommandParameter="{Binding PlacementTarget.SelectedItem, RelativeSource={RelativeSource AncestorType=ContextMenu}}">
+                                <MenuItem.Icon>
+                                    <TextBlock Text="&#xE711;" Style="{StaticResource MenuIcon}" />
+                                </MenuItem.Icon>
+                            </MenuItem>
                             <Separator />
-                            <MenuItem Header="Komutu kopyala" Command="{Binding CopyCommand}"
-                                      CommandParameter="{Binding PlacementTarget.SelectedItem, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                            <MenuItem Header="Komutu kopyala" Command="{Binding CopyCommand}" InputGestureText="Ctrl+C"
+                                      CommandParameter="{Binding PlacementTarget.SelectedItem, RelativeSource={RelativeSource AncestorType=ContextMenu}}">
+                                <MenuItem.Icon>
+                                    <TextBlock Text="&#xE8C8;" Style="{StaticResource MenuIcon}" />
+                                </MenuItem.Icon>
+                            </MenuItem>
                         </ContextMenu>
                     </DataGrid.ContextMenu>
+
+                    <!-- Ctrl+C tablonun satır kopyalaması yerine seçili paketin komutunu kopyalar. -->
+                    <DataGrid.InputBindings>
+                        <KeyBinding Gesture="Ctrl+C" Command="{Binding CopyCommand}"
+                                    CommandParameter="{Binding SelectedItem, ElementName=PackagesGrid}" />
+                    </DataGrid.InputBindings>
 
                     <!-- Grup satırı Expander kullanmaz; böylece satırlar başlıkla aynı hizada kalır. -->
                     <DataGrid.GroupStyle>
@@ -541,6 +580,11 @@
                                             <Setter TargetName="Dot" Property="Fill" Value="{DynamicResource Ok}" />
                                             <Setter TargetName="Text" Property="Foreground" Value="{DynamicResource Ok}" />
                                         </DataTrigger>
+                                        <DataTrigger Binding="{Binding Status}" Value="{x:Static m:UpdateStatus.Unchanged}">
+                                            <Setter TargetName="Dot" Property="Fill" Value="{DynamicResource Warn}" />
+                                            <Setter TargetName="Text" Property="Foreground" Value="{DynamicResource Warn}" />
+                                            <Setter TargetName="Text" Property="ToolTip" Value="Komut başarılı döndü ama yeniden taramada kurulu sürüm aynı. Çıktı sekmesine bakın." />
+                                        </DataTrigger>
                                         <DataTrigger Binding="{Binding Status}" Value="{x:Static m:UpdateStatus.Failed}">
                                             <Setter TargetName="Dot" Property="Fill" Value="{DynamicResource Bad}" />
                                             <Setter TargetName="Text" Property="Foreground" Value="{DynamicResource Bad}" />
@@ -671,6 +715,9 @@
                     Command="{Binding InstallWingetModuleCommand}"
                     Visibility="{Binding Sources[0].Warning, Converter={x:Static vm:NullToCollapsedConverter.Instance}}"
                     ToolTip="Daha güvenilir winget sonuçları için PowerShell modülünü kurar (CurrentUser)." />
+            <ProgressBar DockPanel.Dock="Right" Width="180" Margin="12,0,0,0" VerticalAlignment="Center"
+                         Value="{Binding ProgressValue, Mode=OneWay}" Maximum="{Binding ProgressMax, Mode=OneWay}"
+                         Visibility="{Binding IsBusy, Converter={StaticResource BoolToVis}}" />
             <Ellipse x:Name="BusyDot" Width="7" Height="7" Margin="2,0,8,0" VerticalAlignment="Center">
                 <Ellipse.Style>
                     <Style TargetType="Ellipse">

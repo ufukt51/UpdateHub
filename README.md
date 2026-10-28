@@ -106,6 +106,22 @@ Ayarlar `%APPDATA%\UpdateHub\config.json` dosyasındadır. Satıra sağ tıklay�
 
 Araç çubuğundaki **Hariç tutulanları göster** kutusu, gizlenen paketleri soluk ve `HARİÇ` rozetiyle gösterir (rozetin ipucunda kural yazar). Bu paketler seçilemez. Satıra sağ tıklayıp **Kuralı kaldır** ile paketin kuralları silinir ve paket yeniden güncellenebilir olur.
 
+## Güncelleme sonrası komutlar
+
+Bir paket başarıyla güncellenince `config.json`'daki `postUpdate` komutları sırayla çalışır. Komutlar normal kullanıcı olarak, yönetici işlerinden sonra çalışır. Komut hatası paketi başarısız yapmaz; durum metnine "sonrası hatalı" eklenir ve çıktı Çıktı sekmesinde görünür.
+
+`postUpdate` yazılmamışsa varsayılan geçerlidir: `uv` ile güncellenen `graphifyy`, Claude Code skill'ini yeniler.
+
+```json
+{
+  "postUpdate": [
+    { "source": "Uv", "id": "graphifyy", "commands": ["graphify install --platform windows"] }
+  ]
+}
+```
+
+Kendi listenizi yazarsanız varsayılanın yerine geçer; `"postUpdate": []` hiçbir komut çalıştırmaz. Argümandaki boşluklar için çift tırnak kullanın.
+
 ## Yönetici yetkisi
 
 Uygulama normal kullanıcı olarak çalışır. Chocolatey gibi yönetici gerektiren paketler seçildiğinde:

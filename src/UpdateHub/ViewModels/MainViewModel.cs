@@ -297,6 +297,9 @@ public sealed partial class MainViewModel : ObservableObject
                     SetStatus(pkgs, UpdateStatus.Failed, $"Hata: {ex.Message}");
                 }
             }
+
+            // Yönetici işleri dahil; komutlar normal kullanıcı olarak çalışır.
+            await RunPostUpdateAsync(selected.Where(p => p.Status == UpdateStatus.Succeeded), ct);
         }
         finally
         {
@@ -403,6 +406,51 @@ public sealed partial class MainViewModel : ObservableObject
             p.IsSelected = false;
         RememberInstalled(pkgs);
         return pkgs.Count;
+    }
+
+    /// <summary>
+    /// config.json'daki "postUpdate" komutlarını çalıştırır (ör. graphifyy sonrası skill yenileme).
+    /// Hata paketi başarısız yapmaz; durum metnine eklenir.
+    /// </summary>
+    private async Task RunPostUpdateAsync(IEnumerable<PackageUpdate> packages, CancellationToken ct)
+    {
+        foreach (var p in packages)
+        {
+            foreach (var line in _config.PostUpdateCommands(p))
+            {
+                if (ct.IsCancellationRequested)
+                    return;
+                if (CommandLine.Split(line) is not [var file, .. var args])
+                    continue;
+
+                StatusMessage = $"Güncelleme sonrası: {line}";
+                Log($"> {line}");
+                if (ExecutableLocator.Find(file) is not { } exe)
+                {
+                    Log($"< {file} bulunamadı");
+                    p.StatusText = $"{p.StatusText}, sonrası çalışmadı";
+                    continue;
+                }
+
+                try
+                {
+                    var r = await _runner.RunAsync(exe, args, (l, _) => _dispatcher.BeginInvoke(() => Log(l)), ct);
+                    Log($"< çıkış kodu {r.ExitCode} ({r.Duration.TotalSeconds:0.0} sn)");
+                    if (r.ExitCode != 0)
+                        p.StatusText = $"{p.StatusText}, sonrası hatalı ({file})";
+                }
+                catch (OperationCanceledException)
+                {
+                    Log("< iptal edildi");
+                    return;
+                }
+                catch (Exception ex)
+                {
+                    Log($"< hata: {ex.Message}");
+                    p.StatusText = $"{p.StatusText}, sonrası hatalı ({file})";
+                }
+            }
+        }
     }
 
     /// <summary>Sürümü bilinmeyen paketlerin kurulan sürümünü saklar; sonraki taramada tekrar listelenmezler.</summary>

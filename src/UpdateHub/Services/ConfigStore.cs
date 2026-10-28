@@ -16,6 +16,23 @@ public sealed class AppConfig
 
     /// <summary>Taramada gizlenen paketler.</summary>
     public List<Exclusion> Exclusions { get; set; } = [];
+
+    /// <summary>
+    /// Paket güncellendikten sonra çalışan komutlar. Dosyada yoksa <see cref="ConfigStore.DefaultPostUpdate"/>
+    /// kullanılır; boş liste hiçbir komut çalıştırmaz.
+    /// </summary>
+    public List<PostUpdateHook>? PostUpdate { get; set; }
+}
+
+/// <summary>Bir paket başarıyla güncellenince sırayla çalışan komut satırları.</summary>
+public sealed class PostUpdateHook
+{
+    public SourceKind Source { get; set; }
+    public string Id { get; set; } = "";
+    public List<string> Commands { get; set; } = [];
+
+    public bool IsFor(SourceKind source, string id) =>
+        Source == source && string.Equals(Id, id, StringComparison.OrdinalIgnoreCase);
 }
 
 /// <summary>Dosyada camelCase yazılır ("ignore", "pin", "skipVersion"); okurken harf duyarsız.</summary>
@@ -189,6 +206,19 @@ public sealed class ConfigStore(string path)
     /// <returns>Silinen kural sayısı.</returns>
     public int RemoveExclusions(SourceKind source, string id) =>
         Config.Exclusions.RemoveAll(e => e.IsFor(source, id));
+
+    // ---------- Güncelleme sonrası ----------
+
+    /// <summary>config.json'da "postUpdate" yoksa geçerli komutlar.</summary>
+    public static IReadOnlyList<PostUpdateHook> DefaultPostUpdate { get; } =
+    [
+        // uv tool upgrade yalnızca paketi günceller; Claude Code skill'i (~\.claude\skills\graphify) eski sürümde kalır.
+        new() { Source = SourceKind.Uv, Id = "graphifyy", Commands = ["graphify install --platform windows"] },
+    ];
+
+    /// <summary>Paket güncellendikten sonra çalışacak komut satırları.</summary>
+    public IReadOnlyList<string> PostUpdateCommands(PackageUpdate p) =>
+        [.. (Config.PostUpdate ?? DefaultPostUpdate).Where(h => h.IsFor(p.Source, p.Id)).SelectMany(h => h.Commands ?? [])];
 
     private static string Key(PackageUpdate p) => $"{p.Source}:{p.Id}".ToLowerInvariant();
 }

@@ -495,12 +495,7 @@
                             </DataGridTemplateColumn.CellStyle>
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
-                                    <CheckBox x:Name="Check" IsChecked="{Binding IsSelected, UpdateSourceTrigger=PropertyChanged}" />
-                                    <DataTemplate.Triggers>
-                                        <DataTrigger Binding="{Binding IsExcluded}" Value="True">
-                                            <Setter TargetName="Check" Property="IsEnabled" Value="False" />
-                                        </DataTrigger>
-                                    </DataTemplate.Triggers>
+                                    <CheckBox IsChecked="{Binding IsSelected, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding IsSelectable}" />
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>

@@ -218,4 +218,18 @@ public sealed class ExclusionTests : IDisposable
         p.IsSelected = true;
         p.IsSelected.ShouldBeTrue();
     }
+
+    [Fact]
+    public void UpdatedPackage_CannotBeSelected()
+    {
+        var p = Pkg(SourceKind.Winget, "OpenJS.NodeJS", "27.0.0");
+        p.IsSelected = true;
+
+        p.Status = UpdateStatus.Succeeded;
+        p.IsSelected.ShouldBeFalse();
+        p.IsSelectable.ShouldBeFalse();
+
+        p.IsSelected = true;
+        p.IsSelected.ShouldBeFalse();
+    }
 }

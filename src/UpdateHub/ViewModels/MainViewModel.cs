@@ -58,7 +58,7 @@ public sealed partial class MainViewModel : ObservableObject
         {
             s.AllSelectedChanged += (_, value) =>
             {
-                foreach (var p in Packages.Where(p => p.Group == s && !p.IsExcluded && IsVisible(p)))
+                foreach (var p in Packages.Where(p => p.Group == s && p.IsSelectable && IsVisible(p)))
                     p.IsSelected = value;
             };
         }
@@ -88,7 +88,7 @@ public sealed partial class MainViewModel : ObservableObject
     {
         AllTab.Count = Packages.Count(x => !x.IsExcluded);
         ExcludedCount = Packages.Count(x => x.IsExcluded);
-        SelectedCount = Packages.Count(x => x.IsSelected && !x.IsExcluded);
+        SelectedCount = Packages.Count(x => x.IsSelected && x.IsSelectable);
     }
 
     public ObservableCollection<SourceState> Sources { get; }
@@ -251,7 +251,7 @@ public sealed partial class MainViewModel : ObservableObject
     private async Task UpdateSelectedAsync()
     {
         // Sekme ve arama sadece görünümü süzer; başka sekmede seçilenler de güncellenir (sayı düğmede görünür).
-        var selected = Packages.Where(p => p.IsSelected && !p.IsExcluded && p.Group is not null).ToList();
+        var selected = Packages.Where(p => p.IsSelected && p.IsSelectable && p.Group is not null).ToList();
         if (selected.Count == 0)
         {
             StatusMessage = "Güncellenecek paket seçilmedi.";
@@ -476,8 +476,6 @@ public sealed partial class MainViewModel : ObservableObject
 
         SetStatus(pkgs, UpdateStatus.Succeeded,
             ExitCodes.IsRebootRequired(exitCode) ? "Güncellendi (yeniden başlatma gerekli)" : "Güncellendi");
-        foreach (var p in pkgs)
-            p.IsSelected = false;
         RememberInstalled(pkgs);
         return pkgs.Count;
     }

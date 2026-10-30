@@ -19,4 +19,6 @@ public sealed class UvSource(ProcessRunner runner) : PackageSourceBase(runner)
 
     protected override string[] UpdateArguments(PackageUpdate p) =>
         p.IsBroken ? ["tool", "install", p.Id, "--reinstall"] : ["tool", "upgrade", p.Id];
+
+    public override Task<PackageSize?> GetSizeAsync(PackageUpdate p, CancellationToken ct) => PyPiSizeAsync(p, ct);
 }

@@ -29,4 +29,12 @@ public sealed class DotnetToolSource(ProcessRunner runner, HttpClient http) : Pa
     }
 
     protected override string[] UpdateArguments(PackageUpdate p) => ["tool", "update", "-g", p.Id];
+
+    public override async Task<PackageSize?> GetSizeAsync(PackageUpdate p, CancellationToken ct)
+    {
+        var id = p.Id.ToLowerInvariant();
+        var version = p.Available.ToLowerInvariant();
+        var length = await Web.GetLengthAsync($"{FlatContainer}{id}/{version}/{id}.{version}.nupkg", ct);
+        return length is null ? null : new(length, "NuGet paketi.");
+    }
 }

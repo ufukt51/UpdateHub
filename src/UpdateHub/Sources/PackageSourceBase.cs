@@ -1,5 +1,6 @@
 using UpdateHub.Models;
 using UpdateHub.Services;
+using UpdateHub.Sources.Parsers;
 
 namespace UpdateHub.Sources;
 
@@ -25,6 +26,17 @@ public abstract class PackageSourceBase(ProcessRunner runner) : IPackageSource
 
     public virtual IReadOnlyList<UpdateCommand> CreateUpdateJob(IReadOnlyList<PackageUpdate> packages) =>
         [.. packages.Select(p => Command([p.Id], UpdateArguments(p)))];
+
+    public virtual Task<PackageSize?> GetSizeAsync(PackageUpdate package, CancellationToken ct) => Task.FromResult<PackageSize?>(null);
+
+    /// <summary>pip ve uv: PyPI'daki dosya boyutu. Paket başka bir dizinden (ör. git) kurulduysa bulunmayabilir.</summary>
+    protected static async Task<PackageSize?> PyPiSizeAsync(PackageUpdate p, CancellationToken ct)
+    {
+        var json = await Web.GetStringAsync($"https://pypi.org/pypi/{Uri.EscapeDataString(p.Id)}/{Uri.EscapeDataString(p.Available)}/json", ct);
+        return json is not null && PackageSizeParser.PyPiSize(json) is { } size
+            ? new(size, "Yalnız paketin kendisi; bağımlılıklar dahil değil.")
+            : null;
+    }
 
     /// <summary>Tek paket için güncelleme argümanları.</summary>
     protected abstract string[] UpdateArguments(PackageUpdate package);

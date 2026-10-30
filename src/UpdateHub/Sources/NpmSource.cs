@@ -20,4 +20,13 @@ public sealed class NpmSource(ProcessRunner runner) : PackageSourceBase(runner)
     }
 
     protected override string[] UpdateArguments(PackageUpdate p) => ["install", "-g", $"{p.Id}@latest"];
+
+    public override async Task<PackageSize?> GetSizeAsync(PackageUpdate p, CancellationToken ct)
+    {
+        // Kapsamlı adlarda (@scope/ad) eğik çizgi kodlanır.
+        var json = await Web.GetStringAsync($"https://registry.npmjs.org/{p.Id.Replace("/", "%2F")}/{Uri.EscapeDataString(p.Available)}", ct);
+        if (json is null || PackageSizeParser.NpmTarball(json) is not { } tarball)
+            return null;
+        return new(await Web.GetLengthAsync(tarball, ct), "Paket arşivi; bağımlılıklar dahil değil.");
+    }
 }

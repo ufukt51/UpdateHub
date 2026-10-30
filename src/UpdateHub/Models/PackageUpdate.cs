@@ -59,6 +59,21 @@ public sealed partial class PackageUpdate : ObservableObject
             IsSelected = false;
     }
 
+    /// <summary>Yeni sürümün indirme boyutu (bayt); bilinmiyorsa null. Taramadan sonra arka planda dolar.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SizeText))]
+    public partial long? Size { get; set; }
+
+    /// <summary>Boyutun neyi kapsadığı (sütun ipucu).</summary>
+    [ObservableProperty]
+    public partial string? SizeNote { get; set; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SizeText))]
+    public partial bool IsSizeLoading { get; set; }
+
+    public string SizeText => Size is { } bytes ? InstallProgress.FormatSize(bytes) : IsSizeLoading ? "…" : "—";
+
     public bool IsDuplicate => DuplicateGroup is not null;
 
     /// <summary>Hariç tutulan paket yalnızca "Hariç tutulanları göster" açıkken görünür ve seçilemez.</summary>

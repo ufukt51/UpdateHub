@@ -20,6 +20,12 @@ internal static class DebugSnapshot
         await Task.Delay(500);
         while (vm.IsBusy)
             await Task.Delay(250);
+        // Boyutlar arka planda gelir; en çok 60 sn beklenir.
+        for (int i = 0; i < 240 && vm.Packages.Any(p => p.IsSizeLoading); i++)
+            await Task.Delay(250);
+        foreach (var p in vm.Packages)
+            System.Diagnostics.Debug.WriteLine($"[size] {p.Source} {p.Id} {p.Available}: {p.SizeText} ({p.SizeNote})");
+        File.WriteAllLines(basePath + "-sizes.txt", vm.Packages.Select(p => $"{p.Source} {p.Id} {p.Available}: {p.SizeText} | {p.SizeNote}"));
 
         // Günlük satırları canlı kaydırma yolunu da çalıştırır.
         for (int i = 1; i <= 12; i++)
@@ -51,6 +57,19 @@ internal static class DebugSnapshot
         vm.ProgressValue = 2;
         vm.IsBusy = true;
         await Save(window, basePath + "-busy.png");
+
+        // Güncelleme sırasında: kırmızıdan yeşile çubuk, indirme bilgisi ve yüzde.
+        vm.IsUpdating = true;
+        vm.ProgressValue = 1.31;
+        vm.ProgressText = "İndiriliyor: ≈15,0 MB / 30,0 MB (≈%50) · ≈15,0 MB kaldı";
+        vm.ProgressPercent = "%44";
+        await Save(window, basePath + "-updating.png");
+        vm.ProgressValue = 2.75;
+        vm.ProgressText = "Kuruluyor…";
+        vm.ProgressPercent = "%92";
+        await Save(window, basePath + "-updating2.png");
+        vm.IsUpdating = false;
+        vm.ProgressText = vm.ProgressPercent = null;
         vm.IsBusy = false;
         // İşaretli onay kutusu: ilk paket seçili olduğu için tablodaki ilk işaretli kutu.
         var check = Descendants(window.PackagesGrid).OfType<System.Windows.Controls.CheckBox>().FirstOrDefault(c => c.IsChecked == true);

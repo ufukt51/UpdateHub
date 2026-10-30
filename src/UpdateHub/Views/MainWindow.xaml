@@ -514,6 +514,13 @@
                                             ElementStyle="{StaticResource VersionText}" />
                         <DataGridTextColumn Header="Yeni" Binding="{Binding Available, Mode=OneWay}" Width="110" MinWidth="70" IsReadOnly="True"
                                             ElementStyle="{StaticResource NewVersionText}" />
+                        <DataGridTemplateColumn Header="Boyut" Width="90" MinWidth="60" IsReadOnly="True" SortMemberPath="Size">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding SizeText}" ToolTip="{Binding SizeNote}" Style="{StaticResource VersionText}" />
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
                         <DataGridTemplateColumn Header="Rozetler" Width="200" MinWidth="80" IsReadOnly="True">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
@@ -710,9 +717,26 @@
                     Command="{Binding InstallWingetModuleCommand}"
                     Visibility="{Binding Sources[0].Warning, Converter={x:Static vm:NullToCollapsedConverter.Instance}}"
                     ToolTip="Daha güvenilir winget sonuçları için PowerShell modülünü kurar (CurrentUser)." />
-            <ProgressBar DockPanel.Dock="Right" Width="180" Margin="12,0,0,0" VerticalAlignment="Center"
+            <TextBlock DockPanel.Dock="Right" Text="{Binding ProgressPercent}" Width="36" Margin="8,0,0,0" FontSize="12"
+                       Foreground="{DynamicResource Text}" VerticalAlignment="Center" TextAlignment="Right"
+                       Visibility="{Binding IsUpdating, Converter={StaticResource BoolToVis}}" />
+            <ProgressBar DockPanel.Dock="Right" Width="220" Margin="12,0,0,0" VerticalAlignment="Center"
                          Value="{Binding ProgressValue, Mode=OneWay}" Maximum="{Binding ProgressMax, Mode=OneWay}"
-                         Visibility="{Binding IsBusy, Converter={StaticResource BoolToVis}}" />
+                         Visibility="{Binding IsBusy, Converter={StaticResource BoolToVis}}">
+                <ProgressBar.Style>
+                    <Style TargetType="ProgressBar" BasedOn="{StaticResource {x:Type ProgressBar}}">
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsUpdating}" Value="True">
+                                <Setter Property="Height" Value="6" />
+                                <Setter Property="Template" Value="{StaticResource HealthProgressTemplate}" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </ProgressBar.Style>
+            </ProgressBar>
+            <TextBlock DockPanel.Dock="Right" Text="{Binding ProgressText}" Margin="12,0,0,0" FontSize="12"
+                       Foreground="{DynamicResource Muted}" VerticalAlignment="Center"
+                       Visibility="{Binding IsUpdating, Converter={StaticResource BoolToVis}}" />
             <Ellipse x:Name="BusyDot" Width="7" Height="7" Margin="2,0,8,0" VerticalAlignment="Center">
                 <Ellipse.Style>
                     <Style TargetType="Ellipse">

@@ -33,6 +33,13 @@ public sealed partial class MainViewModel : ObservableObject
     private List<PackageUpdate> _batch = [];
     private CancellationTokenSource? _cts;
 
+    /// <summary>Çalışan işin ilerlemesi ve paketleri; iş yokken null.</summary>
+    private InstallProgress? _job;
+    private List<PackageUpdate> _jobPackages = [];
+    private SourceKind _jobSource;
+    private CancellationTokenSource? _meterCts;
+    private CancellationTokenSource? _sizeCts;
+
     public MainViewModel(IEnumerable<IPackageSource> sources, ProcessRunner runner, ConfigStore? config = null, HistoryLog? history = null,
         AutoStart? autoStart = null)
     {
@@ -75,8 +82,8 @@ public sealed partial class MainViewModel : ObservableObject
                 {
                     if (pe.PropertyName is nameof(PackageUpdate.IsSelected) or nameof(PackageUpdate.ExclusionReason))
                         UpdateCounts();
-                    else if (pe.PropertyName is nameof(PackageUpdate.Status) && _batch.Count > 0)
-                        ProgressValue = _batch.Count(x => x.Status is not (UpdateStatus.Queued or UpdateStatus.Running));
+                    else if (pe.PropertyName is nameof(PackageUpdate.Status))
+                        RefreshProgress();
                 };
             }
             UpdateCounts();
@@ -127,12 +134,27 @@ public sealed partial class MainViewModel : ObservableObject
     [ObservableProperty]
     public partial int ExcludedCount { get; set; }
 
-    /// <summary>İlerleme çubuğu: taramada biten kaynak, güncellemede biten paket sayısı.</summary>
+    /// <summary>
+    /// İlerleme çubuğu: taramada biten kaynak, güncellemede biten paket sayısı
+    /// artı çalışan işin indirme/kurulum adımına göre kesri.
+    /// </summary>
     [ObservableProperty]
-    public partial int ProgressValue { get; set; }
+    public partial double ProgressValue { get; set; }
 
     [ObservableProperty]
-    public partial int ProgressMax { get; set; }
+    public partial double ProgressMax { get; set; }
+
+    /// <summary>Güncelleme sürüyor; çubuk kırmızıdan yeşile dolar, yüzde ve indirme bilgisi görünür.</summary>
+    [ObservableProperty]
+    public partial bool IsUpdating { get; set; }
+
+    /// <summary>Çalışan işin adımı (ör. "İndiriliyor: 12,3 MB / 30,5 MB (%40) · 18,2 MB kaldı").</summary>
+    [ObservableProperty]
+    public partial string? ProgressText { get; set; }
+
+    /// <summary>Toplam ilerleme, ör. "%62".</summary>
+    [ObservableProperty]
+    public partial string? ProgressPercent { get; set; }
 
     partial void OnSearchTextChanged(string value) => PackagesView.Refresh();
 
@@ -164,6 +186,8 @@ public sealed partial class MainViewModel : ObservableObject
         _installed.Clear();
         ProgressValue = 0;
         ProgressMax = Sources.Count;
+        _sizeCts?.Cancel();
+        _sizeCts = new CancellationTokenSource();
 
         try
         {
@@ -225,6 +249,7 @@ public sealed partial class MainViewModel : ObservableObject
             s.State = SourceScanState.Done;
 
             DuplicateDetector.Assign(Packages, _installed.SelectMany(kv => kv.Value.Select(id => (kv.Key, id))));
+            _ = LoadSizesAsync(s, [.. Packages.Where(p => p.Group == s && !p.IsExcluded)], _sizeCts!.Token);
         }
         catch (OperationCanceledException)
         {
@@ -241,6 +266,47 @@ public sealed partial class MainViewModel : ObservableObject
             ProgressValue++;
         }
     }
+
+    /// <summary>
+    /// Boyutları tarama bittikten sonra arka planda getirir; tarama bunları beklemez.
+    /// winget paket başına bir "winget show" çalıştırdığından aynı anda en çok <see cref="SizeGate"/> sorgu yapılır.
+    /// </summary>
+    private async Task LoadSizesAsync(SourceState s, List<PackageUpdate> packages, CancellationToken ct)
+    {
+        foreach (var p in packages)
+            p.IsSizeLoading = true;
+
+        await Task.WhenAll(packages.Select(async p =>
+        {
+            try
+            {
+                await SizeGate.WaitAsync(ct);
+                try
+                {
+                    var size = await Task.Run(() => s.Source.GetSizeAsync(p, ct), ct);
+                    p.Size = size?.Bytes;
+                    p.SizeNote = size?.Note ?? "Kaynak boyut bildirmiyor.";
+                }
+                finally
+                {
+                    SizeGate.Release();
+                }
+            }
+            catch (OperationCanceledException)
+            {
+            }
+            catch (Exception ex)
+            {
+                p.SizeNote = $"Boyut alınamadı: {ex.Message}";
+            }
+            finally
+            {
+                p.IsSizeLoading = false;
+            }
+        }));
+    }
+
+    private static readonly SemaphoreSlim SizeGate = new(3);
 
     // ---------- Güncelleme ----------
 
@@ -275,6 +341,8 @@ public sealed partial class MainViewModel : ObservableObject
         _batch = selected;
         ProgressValue = 0;
         ProgressMax = selected.Count;
+        IsUpdating = true;
+        RefreshProgress();
 
         IsBusy = true;
         _cts = new CancellationTokenSource();
@@ -299,13 +367,14 @@ public sealed partial class MainViewModel : ObservableObject
                 }
 
                 SetStatus(pkgs, UpdateStatus.Running, "Güncelleniyor…");
-                StatusMessage = $"{ProgressValue + 1} / {ProgressMax} paket güncelleniyor: {string.Join(", ", cmd.PackageIds)}";
+                StatusMessage = $"{FinishedCount + 1} / {_batch.Count} paket güncelleniyor: {string.Join(", ", cmd.PackageIds)}";
                 Log($"> {cmd.DisplayText}");
+                BeginJob(cmd.Source, pkgs);
 
                 try
                 {
                     var r = await _runner.RunAsync(cmd.FileName, cmd.Arguments,
-                        (line, _) => _dispatcher.BeginInvoke(() => Log(line)), ct);
+                        (line, _) => _dispatcher.BeginInvoke(() => OnJobLine(line)), ct);
                     Log($"< çıkış kodu {r.ExitCode} ({r.Duration.TotalSeconds:0.0} sn)");
                     RecordHistory(pkgs, r.ExitCode, (long)r.Duration.TotalMilliseconds, Environment.IsPrivilegedProcess);
                     ok += ApplyExitCode(pkgs, r.ExitCode);
@@ -320,6 +389,10 @@ public sealed partial class MainViewModel : ObservableObject
                     Log($"< hata: {ex.Message}");
                     SetStatus(pkgs, UpdateStatus.Failed, $"Hata: {ex.Message}");
                 }
+                finally
+                {
+                    EndJob();
+                }
             }
 
             ok -= await VerifyAsync([.. selected.Where(p => p.Status == UpdateStatus.Succeeded)], ct);
@@ -330,7 +403,10 @@ public sealed partial class MainViewModel : ObservableObject
         finally
         {
             FlushHistory();
+            EndJob();
             _batch = [];
+            IsUpdating = false;
+            ProgressText = ProgressPercent = null;
             IsBusy = false;
             var unchanged = selected.Count(p => p.Status == UpdateStatus.Unchanged);
             StatusMessage = $"{ok}/{selected.Count} paket güncellendi."
@@ -409,24 +485,28 @@ public sealed partial class MainViewModel : ObservableObject
             {
                 case ElevationEventType.Start when pkgs is not null:
                     SetStatus(pkgs, UpdateStatus.Running, "Güncelleniyor…");
-                    StatusMessage = $"{ProgressValue + 1} / {ProgressMax} paket güncelleniyor (yönetici): {string.Join(", ", pkgs.Select(p => p.Id))}";
+                    StatusMessage = $"{FinishedCount + 1} / {_batch.Count} paket güncelleniyor (yönetici): {string.Join(", ", pkgs.Select(p => p.Id))}";
                     Log($"> {ev.Text}");
+                    BeginJob(jobs[ev.Index].Command.Source, pkgs);
                     break;
                 case ElevationEventType.Line:
-                    Log(ev.Text ?? "");
+                    OnJobLine(ev.Text ?? "");
                     break;
                 case ElevationEventType.Exit when pkgs is not null:
+                    EndJob();
                     Log($"< çıkış kodu {ev.ExitCode} ({(ev.DurationMs ?? 0) / 1000.0:0.0} sn)");
                     RecordHistory(pkgs, ev.ExitCode, ev.DurationMs ?? 0, elevated: true);
                     ok += ApplyExitCode(pkgs, ev.ExitCode ?? -1);
                     finished[ev.Index] = true;
                     break;
                 case ElevationEventType.Cancelled when pkgs is not null:
+                    EndJob();
                     Log("< iptal edildi");
                     SetStatus(pkgs, UpdateStatus.Cancelled, "İptal edildi");
                     finished[ev.Index] = true;
                     break;
                 case ElevationEventType.Error when pkgs is not null:
+                    EndJob();
                     Log($"< hata: {ev.Text}");
                     SetStatus(pkgs, UpdateStatus.Failed, $"Hata: {ev.Text}");
                     finished[ev.Index] = true;
@@ -463,6 +543,80 @@ public sealed partial class MainViewModel : ObservableObject
                 SetStatus(jobs[i].Packages, UpdateStatus.Failed, "Yönetici işi tamamlanmadı");
         }
         return ok;
+    }
+
+    // ---------- İlerleme ----------
+
+    private int FinishedCount => _batch.Count(x => x.Status is not (UpdateStatus.Queued or UpdateStatus.Running));
+
+    private void BeginJob(SourceKind source, List<PackageUpdate> packages)
+    {
+        EndJob();
+        _job = new InstallProgress();
+        _jobPackages = packages;
+        _jobSource = source;
+        RefreshProgress();
+    }
+
+    private void EndJob()
+    {
+        _meterCts?.Cancel();
+        _meterCts = null;
+        _job = null;
+        _jobPackages = [];
+        RefreshProgress();
+    }
+
+    /// <summary>İşin çıktı satırı: günlüğe yazılır (choco yüzde satırları hariç) ve ilerlemeyi besler.</summary>
+    private void OnJobLine(string line)
+    {
+        if (!InstallProgress.IsProgressLine(line))
+            Log(line);
+        if (_job is not { } job || !job.OnLine(line))
+            return;
+        // winget indirmeyi çıktıya yazmaz; ağ trafiğinden tahmin edilir.
+        if (_jobSource == SourceKind.Winget && job.Phase == InstallPhase.Downloading && job.DownloadUrl is { } url && _meterCts is null)
+        {
+            _meterCts = new CancellationTokenSource();
+            _ = MeterDownloadAsync(job, url, _meterCts.Token);
+        }
+        RefreshProgress();
+    }
+
+    private async Task MeterDownloadAsync(InstallProgress job, string url, CancellationToken ct)
+    {
+        try
+        {
+            var start = DownloadMeter.BytesReceived();
+            var total = await Web.GetLengthAsync(url, ct);
+            while (!ct.IsCancellationRequested && _job == job && job.Phase == InstallPhase.Downloading)
+            {
+                var received = await Task.Run(DownloadMeter.BytesReceived, ct) - start;
+                if (job.OnBytes(Math.Max(0, received), total))
+                    RefreshProgress();
+                await Task.Delay(500, ct);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+    }
+
+    /// <summary>Çubuğu, yüzdeyi ve çalışan paketlerin satır metnini günceller.</summary>
+    private void RefreshProgress()
+    {
+        if (!IsUpdating || _batch.Count == 0)
+            return;
+
+        var running = _job is { } job ? _jobPackages.Count(p => p.Status == UpdateStatus.Running) * job.Fraction : 0;
+        ProgressValue = FinishedCount + running;
+        ProgressPercent = $"%{ProgressValue * 100 / ProgressMax:0}";
+        ProgressText = _job?.Text;
+        if (ProgressText is { } text)
+        {
+            foreach (var p in _jobPackages.Where(p => p.Status == UpdateStatus.Running))
+                p.StatusText = text;
+        }
     }
 
     /// <returns>Başarılıysa paket sayısı, değilse 0.</returns>

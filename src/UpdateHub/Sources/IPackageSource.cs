@@ -33,6 +33,11 @@ public sealed record UpdateCommand(
     private static string Quote(string arg) => arg.Contains(' ') ? $"\"{arg}\"" : arg;
 }
 
+/// <summary>Güncellemenin indirme boyutu.</summary>
+/// <param name="Bytes">Bilinmiyorsa null.</param>
+/// <param name="Note">Boyutun neyi kapsadığı; sütunun ipucunda gösterilir.</param>
+public sealed record PackageSize(long? Bytes, string Note);
+
 public sealed class SourceScanException(string message) : Exception(message);
 
 public interface IPackageSource
@@ -48,4 +53,7 @@ public interface IPackageSource
 
     /// <summary>Verilen paketleri güncelleyecek komutlar. Toplu güncelleme destekleyen kaynaklar tek komut döndürür.</summary>
     IReadOnlyList<UpdateCommand> CreateUpdateJob(IReadOnlyList<PackageUpdate> packages);
+
+    /// <summary>Yeni sürümün indirme boyutu; kaynak bilmiyorsa null.</summary>
+    Task<PackageSize?> GetSizeAsync(PackageUpdate package, CancellationToken ct) => Task.FromResult<PackageSize?>(null);
 }

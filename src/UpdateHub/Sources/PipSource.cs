@@ -20,4 +20,6 @@ public sealed class PipSource(ProcessRunner runner) : PackageSourceBase(runner)
 
     protected override string[] UpdateArguments(PackageUpdate p) =>
         ["-m", "pip", "install", "-U", p.Id, "--disable-pip-version-check"];
+
+    public override Task<PackageSize?> GetSizeAsync(PackageUpdate p, CancellationToken ct) => PyPiSizeAsync(p, ct);
 }

@@ -47,6 +47,17 @@ public sealed class WingetSource(ProcessRunner runner) : PackageSourceBase(runne
         "--accept-source-agreements", "--accept-package-agreements", "--disable-interactivity",
     ];
 
+    public override async Task<PackageSize?> GetSizeAsync(PackageUpdate p, CancellationToken ct)
+    {
+        string[] args = ["show", "--id", p.Id, "--exact", "--accept-source-agreements", "--disable-interactivity"];
+        // Önerilen sürümün yükleyicisi; sürüm bulunamazsa en yenisi.
+        var r = await RunAsync(ct, [.. args, "--version", p.Available]);
+        var url = PackageSizeParser.WingetInstallerUrl(r.StdOut) ?? PackageSizeParser.WingetInstallerUrl((await RunAsync(ct, args)).StdOut);
+        if (url is null)
+            return null;
+        return new(await Web.GetLengthAsync(url, ct), "Yükleyici boyutu. Bazı yükleyiciler kurulum sırasında ek dosya indirir.");
+    }
+
     /// <summary>Modül klasörünü PowerShell'in arama yollarında arar.</summary>
     private static bool IsModuleInstalled()
     {

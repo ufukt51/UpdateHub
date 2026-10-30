@@ -18,8 +18,11 @@
     <SolidColorBrush x:Key="Pressed" Color="#1A000000" />
 
     <!-- Anlamsal renkler: rozetler ve durum -->
-    <SolidColorBrush x:Key="Ok" Color="#4CC38A" />
-    <SolidColorBrush x:Key="Warn" Color="#F0A24B" />
+    <Color x:Key="OkColor">#4CC38A</Color>
+    <Color x:Key="WarnColor">#F0A24B</Color>
+    <Color x:Key="BadColor">#FF7A70</Color>
+    <SolidColorBrush x:Key="Ok" Color="{StaticResource OkColor}" />
+    <SolidColorBrush x:Key="Warn" Color="{StaticResource WarnColor}" />
     <SolidColorBrush x:Key="WarnSoft" Color="#24F0A24B" />
     <SolidColorBrush x:Key="WarnEdge" Color="#59F0A24B" />
     <SolidColorBrush x:Key="Admin" Color="#6FB1FF" />
@@ -28,7 +31,7 @@
     <SolidColorBrush x:Key="Dup" Color="#B79CFF" />
     <SolidColorBrush x:Key="DupSoft" Color="#24B79CFF" />
     <SolidColorBrush x:Key="DupEdge" Color="#59B79CFF" />
-    <SolidColorBrush x:Key="Bad" Color="#FF7A70" />
+    <SolidColorBrush x:Key="Bad" Color="{StaticResource BadColor}" />
     <SolidColorBrush x:Key="BadSoft" Color="#24FF7A70" />
     <SolidColorBrush x:Key="BadEdge" Color="#59FF7A70" />
 
@@ -268,6 +271,24 @@
             </Setter.Value>
         </Setter>
     </Style>
+
+    <!-- Güncelleme çubuğu: dolu kısım kırmızıdan yeşile; renk geçişi tüm iz boyunca sabit, dolgu ilerledikçe açılır. -->
+    <ControlTemplate x:Key="HealthProgressTemplate" TargetType="ProgressBar">
+        <Grid>
+            <Border x:Name="PART_Track" CornerRadius="2" Background="{TemplateBinding Background}" />
+            <Border x:Name="PART_Indicator" HorizontalAlignment="Left" ClipToBounds="True">
+                <Border HorizontalAlignment="Left" CornerRadius="2" Width="{Binding ActualWidth, ElementName=PART_Track}">
+                    <Border.Background>
+                        <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                            <GradientStop Offset="0" Color="{StaticResource BadColor}" />
+                            <GradientStop Offset="0.5" Color="{StaticResource WarnColor}" />
+                            <GradientStop Offset="1" Color="{StaticResource OkColor}" />
+                        </LinearGradientBrush>
+                    </Border.Background>
+                </Border>
+            </Border>
+        </Grid>
+    </ControlTemplate>
 
     <!-- Rozetler: renkli metin, aynı tonda saydam zemin ve çerçeve. -->
     <Style x:Key="Badge" TargetType="Border">

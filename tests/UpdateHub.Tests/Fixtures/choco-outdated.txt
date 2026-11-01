@@ -1,5 +1,0 @@
-python|3.15.0|3.15.2|false
-python3|3.15.0|3.15.2|false
-python315|3.15.0|3.15.2|false
-visualstudio2019buildtools|16.11.47|16.11.60|false
-visualstudio2026buildtools|118.10.3|118.11.1|false

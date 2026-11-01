@@ -1,9 +1,0 @@
-Name                                    Id                     Version       Available     Source
--------------------------------------------------------------------------------------------------
-HP Connection Optimizer                 HP.ConnectionOptimizer 2.0.20.0      2.0.22        winget
-Microsoft Edge                          Microsoft.Edge         156.0.4314.42 156.0.4314.50 winget
-Microsoft ODBC Driver 18 for SQL Server Microsoft.msodbcsql.18 18.6.1.1      18.7.1.1      winget
-Poly Studio                             Poly.PolyStudio        5.1.0.1111    5.2.0.741     winget
-WinRAR 7.00 (64 bit)                    RARLab.WinRAR          7.00.0        7.23.0        winget
-wkhtmltox 0.12.6-1                      wkhtmltopdf.wkhtmltox  Unknown       0.12.6-1      winget
-6 upgrades available.

@@ -58,10 +58,7 @@ public partial class App : Application
         if (await SelfUpdate.CheckAsync(CancellationToken.None) is not { } release)
             return;
 
-        var answer = MessageBox.Show(MainWindow,
-            $"UpdateHub {release.Version} yayınlandı (kurulu: {SelfUpdate.CurrentVersion}).\n\nŞimdi güncellenip yeniden başlatılsın mı?",
-            "UpdateHub güncellemesi", MessageBoxButton.YesNo, MessageBoxImage.Information);
-        if (answer != MessageBoxResult.Yes)
+        if (!SelfUpdateWindow.Ask(release))
             return;
 
         string exe;
@@ -72,9 +69,7 @@ public partial class App : Application
         }
         catch (Exception ex)
         {
-            vm.StatusMessage = "UpdateHub güncellenemedi.";
-            MessageBox.Show(MainWindow, $"UpdateHub güncellenemedi: {ex.Message}", "UpdateHub güncellemesi",
-                MessageBoxButton.OK, MessageBoxImage.Warning);
+            vm.StatusMessage = $"UpdateHub güncellenemedi: {ex.Message}";
             return;
         }
 

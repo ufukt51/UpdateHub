@@ -7,7 +7,8 @@ namespace UpdateHub.Services;
 /// <summary>GitHub'daki en son release.</summary>
 /// <param name="Version">Etiket ("v" olmadan), ör. 0.1.4.</param>
 /// <param name="ZipUrl">*-win-x64.zip dosyasının indirme adresi.</param>
-public sealed record SelfRelease(string Version, string ZipUrl);
+/// <param name="Notes">Release açıklaması; yoksa boş.</param>
+public sealed record SelfRelease(string Version, string ZipUrl, string Notes = "");
 
 /// <summary>UpdateHub'ın kendi güncellemesi: GitHub "latest" release'ine bakar, exe'yi açıldığı yerde değiştirir.</summary>
 public static class SelfUpdate
@@ -38,7 +39,7 @@ public static class SelfUpdate
         {
             if (asset.GetProperty("name").GetString()?.EndsWith("-win-x64.zip", StringComparison.OrdinalIgnoreCase) == true
                 && asset.GetProperty("browser_download_url").GetString() is { } url)
-                return new(version, url);
+                return new(version, url, root.TryGetProperty("body", out var b) ? b.GetString()?.Trim() ?? "" : "");
         }
         return null;
     }

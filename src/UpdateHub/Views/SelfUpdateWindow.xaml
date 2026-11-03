@@ -1,0 +1,50 @@
+<Window x:Class="UpdateHub.Views.SelfUpdateWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="UpdateHub güncellemesi" Width="520" SizeToContent="Height" MaxHeight="620"
+        ResizeMode="NoResize" ShowInTaskbar="False" WindowStartupLocation="CenterOwner"
+        Background="{DynamicResource Bg}" Foreground="{DynamicResource Text}"
+        FontFamily="Segoe UI Variable Text, Segoe UI" FontSize="13">
+    <Grid Margin="20,16,20,16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0" Margin="0,0,0,12">
+            <TextBlock Text="Yeni UpdateHub sürümü var" FontSize="18" FontWeight="SemiBold" />
+            <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                <TextBlock x:Name="CurrentText" FontFamily="{StaticResource MonoFont}" FontSize="12"
+                           Foreground="{DynamicResource Muted}" VerticalAlignment="Center" />
+                <TextBlock Text="&#xE72A;" FontFamily="{StaticResource IconFont}" FontSize="10" Margin="8,0"
+                           Foreground="{DynamicResource Dim}" VerticalAlignment="Center" />
+                <TextBlock x:Name="NewText" FontFamily="{StaticResource MonoFont}" FontSize="12" FontWeight="SemiBold"
+                           VerticalAlignment="Center" />
+            </StackPanel>
+        </StackPanel>
+
+        <!-- Release notları -->
+        <Border Grid.Row="1" x:Name="NotesBox" Background="{DynamicResource Surface}" BorderBrush="{DynamicResource Line}"
+                BorderThickness="1" CornerRadius="8" Padding="12,8">
+            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" MaxHeight="320">
+                <TextBlock x:Name="NotesText" TextWrapping="Wrap" />
+            </ScrollViewer>
+        </Border>
+
+        <TextBlock Grid.Row="2" Text="Güncelleme indirilir, program açıldığı klasörde değiştirilir ve yeniden başlatılır."
+                   TextWrapping="Wrap" Foreground="{DynamicResource Muted}" Margin="2,12,0,0" />
+
+        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+            <Button Style="{StaticResource GhostBtn}" Content="Sonra" IsCancel="True" MinWidth="96" Margin="0,0,8,0" />
+            <Button x:Name="UpdateButton" Style="{StaticResource PrimaryBtn}" IsDefault="True" MinWidth="112"
+                    Click="Update_Click">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="&#xE74A;" Style="{StaticResource BtnIcon}" />
+                    <TextBlock Text="Güncelle ve yeniden başlat" VerticalAlignment="Center" />
+                </StackPanel>
+            </Button>
+        </StackPanel>
+    </Grid>
+</Window>

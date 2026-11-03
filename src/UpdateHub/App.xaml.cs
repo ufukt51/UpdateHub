@@ -30,6 +30,11 @@ public partial class App : Application
 
         var vm = new MainViewModel(SourceCatalog.CreateAll(runner), runner);
         MainWindow = new MainWindow { DataContext = vm };
+        SelfUpdate.CleanUp();
+#if !DEBUG
+        // Loaded: --startup ile pencere hiç açılmazsa sorulmaz.
+        MainWindow.Loaded += async (_, _) => await OfferSelfUpdateAsync(vm);
+#endif
 
         if (e.Args.Contains(AutoStart.Argument, StringComparer.OrdinalIgnoreCase))
         {
@@ -45,6 +50,42 @@ public partial class App : Application
         if (snapshot >= 0 && snapshot + 1 < e.Args.Length)
             DebugSnapshot.Run((MainWindow)MainWindow, vm, e.Args[snapshot + 1]);
 #endif
+    }
+
+    /// <summary>GitHub'da yeni sürüm varsa sorar; onaylanırsa exe'yi açıldığı yerde değiştirip yeniden başlatır.</summary>
+    private async Task OfferSelfUpdateAsync(MainViewModel vm)
+    {
+        if (await SelfUpdate.CheckAsync(CancellationToken.None) is not { } release)
+            return;
+
+        var answer = MessageBox.Show(MainWindow,
+            $"UpdateHub {release.Version} yayınlandı (kurulu: {SelfUpdate.CurrentVersion}).\n\nŞimdi güncellenip yeniden başlatılsın mı?",
+            "UpdateHub güncellemesi", MessageBoxButton.YesNo, MessageBoxImage.Information);
+        if (answer != MessageBoxResult.Yes)
+            return;
+
+        string exe;
+        try
+        {
+            vm.StatusMessage = $"UpdateHub {release.Version} indiriliyor…";
+            exe = await SelfUpdate.InstallAsync(release, CancellationToken.None);
+        }
+        catch (Exception ex)
+        {
+            vm.StatusMessage = "UpdateHub güncellenemedi.";
+            MessageBox.Show(MainWindow, $"UpdateHub güncellenemedi: {ex.Message}", "UpdateHub güncellemesi",
+                MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        // Paket güncellemesi sürerken kapatılmaz; yeni sürüm sonraki açılışta çalışır.
+        if (vm.IsUpdating)
+        {
+            vm.StatusMessage = $"UpdateHub {release.Version} kuruldu; yeniden açınca geçerli olur.";
+            return;
+        }
+        SelfUpdate.Restart(exe);
+        Shutdown();
     }
 
     /// <summary>Pencere açmadan tarar, özeti konsola yazar ve çıkış koduyla kapanır.</summary>

@@ -22,4 +22,19 @@ public sealed class PipSource(ProcessRunner runner) : PackageSourceBase(runner)
         ["-m", "pip", "install", "-U", p.Id, "--disable-pip-version-check"];
 
     public override Task<PackageSize?> GetSizeAsync(PackageUpdate p, CancellationToken ct) => PyPiSizeAsync(p, ct);
+
+    /// <summary><c>pip check</c>: kurulu paketler arasındaki uyumsuzluklar. Sorun yoksa boş.</summary>
+    public async Task<IReadOnlyList<string>> CheckAsync(CancellationToken ct)
+    {
+        var r = Ensure(await RunAsync(ct, "-m", "pip", "check", "--disable-pip-version-check"), 0, 1);
+        return ParseCheck(r.ExitCode, r.StdOut);
+    }
+
+    /// <summary>pip check sorun bulursa 1 ile çıkar ve her sorunu stdout'ta bir satıra yazar.</summary>
+    public static IReadOnlyList<string> ParseCheck(int exitCode, string stdout) => exitCode == 0 ? [] :
+        [.. stdout.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)];
+
+    /// <summary>Paketleri güncelleme öncesi sürümlerine döndüren tek komut.</summary>
+    public UpdateCommand RollbackCommand(IReadOnlyList<PackageUpdate> packages) => Command(packages.Select(p => p.Id),
+        ["-m", "pip", "install", .. packages.Select(p => $"{p.Id}=={p.Current}"), "--disable-pip-version-check"]);
 }

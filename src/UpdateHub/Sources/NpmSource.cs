@@ -4,8 +4,10 @@ using UpdateHub.Sources.Parsers;
 
 namespace UpdateHub.Sources;
 
-public sealed class NpmSource(ProcessRunner runner) : PackageSourceBase(runner)
+public sealed class NpmSource(ProcessRunner runner) : PackageSourceBase(runner), IConflictCheckSource
 {
+    public string CheckCommandText => "npm ls -g --all";
+
     public override SourceKind Kind => SourceKind.Npm;
     public override string DisplayName => "npm (global)";
     protected override string ExecutableName => "npm.cmd";
@@ -20,6 +22,21 @@ public sealed class NpmSource(ProcessRunner runner) : PackageSourceBase(runner)
     }
 
     protected override string[] UpdateArguments(PackageUpdate p) => ["install", "-g", $"{p.Id}@latest"];
+
+    public async Task<IReadOnlyList<string>> CheckAsync(CancellationToken ct)
+    {
+        // Sorun varsa npm ls 1 döndürür; sorun listesi yoksa komutun kendisi başarısızdır.
+        var r = Ensure(await RunAsync(ct, "ls", "-g", "--all", "--json"), 0, 1);
+        var problems = NpmCheckParser.ParseProblems(r.StdOut);
+        if (r.ExitCode == 1 && problems.Count == 0)
+            Ensure(r);
+        return problems;
+    }
+
+    public UpdateCommand RollbackCommand(IReadOnlyList<PackageUpdate> packages) => Command(packages.Select(p => p.Id),
+        ["install", "-g", .. packages.Select(p => $"{p.Id}@{p.Current}")]);
+
+    public IReadOnlyList<string> ParseInstallWarnings(string stderr) => NpmCheckParser.ParseEngineWarnings(stderr);
 
     public override async Task<PackageSize?> GetSizeAsync(PackageUpdate p, CancellationToken ct)
     {

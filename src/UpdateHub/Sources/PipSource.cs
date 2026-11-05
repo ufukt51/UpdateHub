@@ -4,9 +4,11 @@ using UpdateHub.Sources.Parsers;
 
 namespace UpdateHub.Sources;
 
-public sealed class PipSource(ProcessRunner runner) : PackageSourceBase(runner)
+public sealed class PipSource(ProcessRunner runner) : PackageSourceBase(runner), IConflictCheckSource
 {
     public const string GlobalEnvironmentWarning = "Global ortam; bağımlılıklar bozulabilir.";
+
+    public string CheckCommandText => "python -m pip check";
 
     public override SourceKind Kind => SourceKind.Pip;
     public override string DisplayName => "pip (global)";
@@ -34,7 +36,6 @@ public sealed class PipSource(ProcessRunner runner) : PackageSourceBase(runner)
     public static IReadOnlyList<string> ParseCheck(int exitCode, string stdout) => exitCode == 0 ? [] :
         [.. stdout.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)];
 
-    /// <summary>Paketleri güncelleme öncesi sürümlerine döndüren tek komut.</summary>
     public UpdateCommand RollbackCommand(IReadOnlyList<PackageUpdate> packages) => Command(packages.Select(p => p.Id),
         ["-m", "pip", "install", .. packages.Select(p => $"{p.Id}=={p.Current}"), "--disable-pip-version-check"]);
 }

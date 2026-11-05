@@ -313,8 +313,8 @@ public sealed partial class MainViewModel : ObservableObject
     /// <summary>Güncellemeden önce onay ister. Testler pencere açmamak için değiştirir.</summary>
     public Func<ConfirmSummary, bool> ConfirmUpdate { get; set; } = ConfirmUpdateWindow.Ask;
 
-    /// <summary>pip güncellemesi uyumsuzluk getirdiğinde sorar; true ise güncelleme korunur, false ise geri alınır.</summary>
-    public Func<IReadOnlyList<string>, IReadOnlyList<PackageUpdate>, bool> ConfirmPipConflicts { get; set; } = PipConflictWindow.Ask;
+    /// <summary>Güncelleme uyumsuzluk getirdiğinde sorar (kaynak adı, sorunlar, paketler); true ise güncelleme korunur, false ise geri alınır.</summary>
+    public Func<string, IReadOnlyList<string>, IReadOnlyList<PackageUpdate>, bool> ConfirmConflicts { get; set; } = ConflictWindow.Ask;
 
     [RelayCommand(CanExecute = nameof(CanUpdate))]
     private async Task UpdateSelectedAsync()
@@ -354,9 +354,10 @@ public sealed partial class MainViewModel : ObservableObject
 
         try
         {
-            // Güncelleme öncesi pip check: yalnızca güncellemenin getirdiği yeni uyumsuzluklar sorulur.
-            var pip = selected.Select(p => p.Group!).FirstOrDefault(g => g.Source is PipSource);
-            var pipBefore = pip is null ? null : await PipCheckAsync(pip, ct);
+            // Güncelleme öncesi denetim: yalnızca güncellemenin getirdiği yeni uyumsuzluklar sorulur.
+            var checks = new List<(SourceState Group, IReadOnlyList<string>? Before, List<string> Warnings)>();
+            foreach (var g in selected.Select(p => p.Group!).Distinct().Where(g => g.Source is IConflictCheckSource))
+                checks.Add((g, await CheckConflictsAsync(g, ct), []));
 
             // UAC hemen istensin diye yönetici işleri önce, tek seferde çalışır.
             // Uygulama zaten yönetici olarak açıldıysa aracıya gerek yok.
@@ -385,6 +386,8 @@ public sealed partial class MainViewModel : ObservableObject
                     Log($"< çıkış kodu {r.ExitCode} ({r.Duration.TotalSeconds:0.0} sn)");
                     RecordHistory(pkgs, r.ExitCode, (long)r.Duration.TotalMilliseconds, Environment.IsPrivilegedProcess);
                     ok += ApplyExitCode(pkgs, r.ExitCode);
+                    foreach (var c in checks.Where(c => r.ExitCode == 0 && c.Group == pkgs[0].Group))
+                        c.Warnings.AddRange(((IConflictCheckSource)c.Group.Source).ParseInstallWarnings(r.StdErr));
                 }
                 catch (OperationCanceledException)
                 {
@@ -403,8 +406,8 @@ public sealed partial class MainViewModel : ObservableObject
             }
 
             ok -= await VerifyAsync([.. selected.Where(p => p.Status == UpdateStatus.Succeeded)], ct);
-            if (pip is not null && pipBefore is not null)
-                ok -= await CheckPipConflictsAsync(pip, pipBefore, [.. selected.Where(p => p.Group == pip && p.Status == UpdateStatus.Succeeded)], ct);
+            foreach (var (g, before, warnings) in checks)
+                ok -= await ResolveConflictsAsync(g, before, warnings, [.. selected.Where(p => p.Group == g && p.Status == UpdateStatus.Succeeded)], ct);
 
             // Yönetici işleri dahil; komutlar normal kullanıcı olarak çalışır.
             await RunPostUpdateAsync(selected.Where(p => p.Status == UpdateStatus.Succeeded), ct);
@@ -467,14 +470,15 @@ public sealed partial class MainViewModel : ObservableObject
         return count;
     }
 
-    /// <returns>Uyumsuzluk satırları; pip check çalışmazsa null.</returns>
-    private async Task<IReadOnlyList<string>?> PipCheckAsync(SourceState s, CancellationToken ct)
+    /// <returns>Uyumsuzluk satırları; denetim çalışmazsa null.</returns>
+    private async Task<IReadOnlyList<string>?> CheckConflictsAsync(SourceState s, CancellationToken ct)
     {
-        StatusMessage = "pip check: bağımlılıklar denetleniyor…";
-        Log("> python -m pip check");
+        var checker = (IConflictCheckSource)s.Source;
+        StatusMessage = $"{checker.CheckCommandText}: bağımlılıklar denetleniyor…";
+        Log($"> {checker.CheckCommandText}");
         try
         {
-            var problems = await Task.Run(() => ((PipSource)s.Source).CheckAsync(ct), ct);
+            var problems = await Task.Run(() => checker.CheckAsync(ct), ct);
             Log(problems.Count == 0 ? "< uyumsuzluk yok" : $"< {problems.Count} uyumsuzluk");
             return problems;
         }
@@ -484,36 +488,37 @@ public sealed partial class MainViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            Log($"< pip check başarısız: {ex.Message}");
+            Log($"< denetim başarısız: {ex.Message}");
             return null;
         }
     }
 
     /// <summary>
-    /// pip güncellemesinden sonra yeni uyumsuzluk çıktıysa kullanıcıya sorar.
-    /// Kullanıcı devam etmezse güncellenen pip paketleri eski sürümlerine döner.
+    /// Güncellemeden sonra yeni uyumsuzluk çıktıysa kullanıcıya sorar.
+    /// Kullanıcı devam etmezse güncellenen paketler eski sürümlerine döner.
     /// </summary>
+    /// <param name="before">Güncelleme öncesi sorunlar; denetim çalışmadıysa null.</param>
+    /// <param name="warnings">Kurulum sırasında yakalanan uyumsuzluklar.</param>
     /// <returns>Geri alınan paket sayısı.</returns>
-    private async Task<int> CheckPipConflictsAsync(SourceState s, IReadOnlyList<string> before, List<PackageUpdate> updated, CancellationToken ct)
+    private async Task<int> ResolveConflictsAsync(SourceState s, IReadOnlyList<string>? before, List<string> warnings, List<PackageUpdate> updated, CancellationToken ct)
     {
         if (updated.Count == 0 || ct.IsCancellationRequested)
             return 0;
-        if (await PipCheckAsync(s, ct) is not { } after)
-            return 0;
 
-        var conflicts = after.Except(before).ToList();
+        var after = before is null ? null : await CheckConflictsAsync(s, ct);
+        var conflicts = (after is null ? warnings : after.Except(before!).Concat(warnings)).Distinct().ToList();
         if (conflicts.Count == 0)
             return 0;
         foreach (var c in conflicts)
             Log($"[{s.DisplayName}] uyumsuz: {c}");
 
-        if (ConfirmPipConflicts(conflicts, updated))
+        if (ConfirmConflicts(s.DisplayName, conflicts, updated))
         {
             Log($"[{s.DisplayName}] uyumsuzluğa rağmen güncelleme korundu.");
             return 0;
         }
 
-        var cmd = ((PipSource)s.Source).RollbackCommand(updated);
+        var cmd = ((IConflictCheckSource)s.Source).RollbackCommand(updated);
         StatusMessage = $"Geri alınıyor: {string.Join(", ", cmd.PackageIds)}";
         Log($"> {cmd.DisplayText}");
         try
@@ -536,7 +541,7 @@ public sealed partial class MainViewModel : ObservableObject
             SetStatus([p], UpdateStatus.Unchanged, $"Geri alındı ({p.Current})");
             MarkHistoryUnchanged(p);
         }
-        await PipCheckAsync(s, ct);
+        await CheckConflictsAsync(s, ct);
         return updated.Count;
     }
 

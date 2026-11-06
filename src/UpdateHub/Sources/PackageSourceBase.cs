@@ -13,6 +13,7 @@ public abstract class PackageSourceBase(ProcessRunner runner) : IPackageSource
     public abstract SourceKind Kind { get; }
     public abstract string DisplayName { get; }
     public virtual bool RequiresAdmin => false;
+    public virtual int? ElevationRetryExitCode => null;
 
     /// <summary>PATH'te aranacak çalıştırılabilir ad (uzantısız olabilir).</summary>
     protected abstract string ExecutableName { get; }

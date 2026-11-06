@@ -21,6 +21,9 @@ public sealed class WingetSource(ProcessRunner runner) : PackageSourceBase(runne
     public override string DisplayName => "winget";
     protected override string ExecutableName => "winget";
 
+    // 0x8A150030: eski sürümü kaldırma komutu başarısız. Makine geneli MSI'lar (ör. Java) /quiet ile UAC isteyemez, 1603 döner.
+    public override int? ElevationRetryExitCode => -1978335184;
+
     public override async Task<ScanResult> GetOutdatedAsync(CancellationToken ct)
     {
         // Modül yoksa pwsh hiç başlatılmaz (EDR'ler "PowerShell -Command" çağrılarını işaretliyor).

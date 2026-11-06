@@ -130,7 +130,9 @@ Uygulama normal kullanıcı olarak çalışır. Chocolatey gibi yönetici gerekt
 2. Aynı exe `--elevated-run <job.json>` ile yönetici olarak başlatılır. Tek bir UAC onayı istenir.
 3. Yükseltilmiş süreç komutu kendisi oluşturur ve çıktıyı `job-<guid>.out.jsonl` dosyasına yazar. Ana pencere bu dosyayı izler.
 
-UAC reddedilirse satırlar "İptal edildi (UAC)" olarak işaretlenir. Yükseltilmiş süreç yönetici gerektirmeyen kaynakları ve geçersiz paket kimliklerini reddeder.
+winget normal yetkiyle çalışır. Eski sürümü kaldırma adımı başarısız olursa (`0x8A150030`, ör. Java) aynı paket UAC onayıyla bir kez daha denenir. Geçmişte iki deneme de görünür.
+
+UAC reddedilirse satırlar "İptal edildi (UAC)" olarak işaretlenir. Yükseltilmiş süreç yönetici olarak çalışmayan kaynakları ve geçersiz paket kimliklerini reddeder.
 
 ## Gereksinimler
 

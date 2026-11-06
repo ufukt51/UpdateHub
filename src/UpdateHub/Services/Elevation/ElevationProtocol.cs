@@ -55,7 +55,7 @@ public static partial class ElevationProtocol
 
     /// <summary>
     /// İş dosyası kullanıcının yazabildiği bir klasörde durur. Yönetici olarak çalıştırmadan önce
-    /// sadece yönetici gerektiren kaynaklara ve düz paket kimliklerine izin verilir.
+    /// sadece yönetici gerektiren veya yönetici olarak yeniden denenebilen kaynaklara ve düz paket kimliklerine izin verilir.
     /// </summary>
     /// <returns>Hata mesajı; geçerliyse null.</returns>
     public static string? Validate(ElevatedJob job, IReadOnlyList<IPackageSource> sources)
@@ -66,7 +66,7 @@ public static partial class ElevationProtocol
         foreach (var item in job.Items)
         {
             var source = sources.FirstOrDefault(s => s.Kind == item.Source);
-            if (source is null || !source.RequiresAdmin)
+            if (source is null || (!source.RequiresAdmin && source.ElevationRetryExitCode is null))
                 return $"{item.Source} kaynağı yönetici olarak çalıştırılamaz.";
             if (item.PackageIds is not { Count: > 0 })
                 return $"{item.Source} için paket yok.";

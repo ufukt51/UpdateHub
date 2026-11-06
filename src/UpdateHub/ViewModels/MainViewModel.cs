@@ -365,6 +365,8 @@ public sealed partial class MainViewModel : ObservableObject
             if (adminJobs.Count > 0)
                 ok += await RunElevatedAsync(adminJobs, ct);
 
+            var retryJobs = new List<(UpdateCommand Command, List<PackageUpdate> Packages)>();
+
             // Paket yöneticileri kilit kullandığından işler sırayla çalışır.
             foreach (var (cmd, pkgs) in jobs.Except(adminJobs))
             {
@@ -385,6 +387,12 @@ public sealed partial class MainViewModel : ObservableObject
                         (line, _) => _dispatcher.BeginInvoke(() => OnJobLine(line)), ct);
                     Log($"< çıkış kodu {r.ExitCode} ({r.Duration.TotalSeconds:0.0} sn)");
                     RecordHistory(pkgs, r.ExitCode, (long)r.Duration.TotalMilliseconds, Environment.IsPrivilegedProcess);
+                    if (!Environment.IsPrivilegedProcess && r.ExitCode == pkgs[0].Group!.Source.ElevationRetryExitCode)
+                    {
+                        Log($"[{pkgs[0].Group!.DisplayName}] yönetici yetkisi gerekiyor; UAC ile yeniden denenecek.");
+                        retryJobs.Add((cmd, pkgs));
+                        continue;
+                    }
                     ok += ApplyExitCode(pkgs, r.ExitCode);
                     foreach (var c in checks.Where(c => r.ExitCode == 0 && c.Group == pkgs[0].Group))
                         c.Warnings.AddRange(((IConflictCheckSource)c.Group.Source).ParseInstallWarnings(r.StdErr));
@@ -404,6 +412,9 @@ public sealed partial class MainViewModel : ObservableObject
                     EndJob();
                 }
             }
+
+            if (retryJobs.Count > 0)
+                ok += await RunElevatedAsync(retryJobs, ct);
 
             ok -= await VerifyAsync([.. selected.Where(p => p.Status == UpdateStatus.Succeeded)], ct);
             foreach (var (g, before, warnings) in checks)

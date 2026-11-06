@@ -46,6 +46,9 @@ public interface IPackageSource
     string DisplayName { get; }
     bool RequiresAdmin { get; }
 
+    /// <summary>Normal yetkiyle bu kodla biten komut, yönetici olarak bir kez daha denenir; yoksa null.</summary>
+    int? ElevationRetryExitCode => null;
+
     /// <summary>Kaynak bu makinede kurulu mu?</summary>
     Task<bool> IsAvailableAsync(CancellationToken ct);
 

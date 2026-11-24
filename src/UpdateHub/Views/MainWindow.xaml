@@ -457,7 +457,7 @@
                                                                 </ControlTemplate>
                                                             </ToggleButton.Template>
                                                         </ToggleButton>
-                                                        <CheckBox IsChecked="{Binding Name.IsAllSelected}" ToolTip="Tümünü seç" HorizontalAlignment="Center" />
+                                                        <CheckBox IsChecked="{Binding Name.IsAllSelected}" IsEnabled="{Binding Name.HasPending}" ToolTip="Tümünü seç" HorizontalAlignment="Center" />
                                                         <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="10,0,0,0" VerticalAlignment="Center" IsHitTestVisible="False">
                                                             <TextBlock Text="{Binding Name.DisplayName}" FontWeight="SemiBold" />
                                                             <TextBlock Text="{Binding Name.StatusText}" Margin="10,0,0,0" Foreground="{DynamicResource Muted}" />

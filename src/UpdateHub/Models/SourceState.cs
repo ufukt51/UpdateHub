@@ -38,6 +38,10 @@ public sealed partial class SourceState(IPackageSource source) : ObservableObjec
     [ObservableProperty]
     public partial bool IsAllSelected { get; set; }
 
+    /// <summary>Grupta henüz güncellenmemiş paket var mı; yoksa başlık kutusu pasif olur.</summary>
+    [ObservableProperty]
+    public partial bool HasPending { get; set; }
+
     public event EventHandler<bool>? AllSelectedChanged;
 
     public bool IsUnavailable => State is SourceScanState.NotInstalled or SourceScanState.Error;

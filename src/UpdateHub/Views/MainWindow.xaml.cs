@@ -23,7 +23,14 @@ public partial class MainWindow : Window
         };
     }
 
-    private IList<string> LogLines => ((MainViewModel)DataContext).LogLines;
+    protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
+    {
+        if (DataContext is MainViewModel { IsUpdating: true } && !QuitWindow.Ask(this))
+            e.Cancel = true;
+        base.OnClosing(e);
+    }
+
+    private IList<string> LogLines =>((MainViewModel)DataContext).LogLines;
 
     private bool _scrollPending;
 

@@ -83,7 +83,10 @@ public sealed partial class MainViewModel : ObservableObject
                     if (pe.PropertyName is nameof(PackageUpdate.IsSelected) or nameof(PackageUpdate.ExclusionReason))
                         UpdateCounts();
                     else if (pe.PropertyName is nameof(PackageUpdate.Status))
+                    {
                         RefreshProgress();
+                        RefreshGroups();
+                    }
                 };
             }
             UpdateCounts();
@@ -96,6 +99,14 @@ public sealed partial class MainViewModel : ObservableObject
         AllTab.Count = Packages.Count(x => !x.IsExcluded);
         ExcludedCount = Packages.Count(x => x.IsExcluded);
         SelectedCount = Packages.Count(x => x.IsSelected && x.IsSelectable);
+        RefreshGroups();
+    }
+
+    /// <summary>Güncellemesi biten grubun (başarılı ya da hatalı) "tümünü seç" kutusu pasifleşir.</summary>
+    private void RefreshGroups()
+    {
+        foreach (var s in Sources)
+            s.HasPending = Packages.Any(x => x.Group == s && x.Status == UpdateStatus.Pending && !x.IsExcluded);
     }
 
     public ObservableCollection<SourceState> Sources { get; }
